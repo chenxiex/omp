@@ -5,8 +5,17 @@ import {
   getAutomaticTarget,
   getEndedTransition,
   getEndedSlotAction,
+  getFailureTransition,
   getHandoffDelayMs,
+  getMediaErrorKind,
+  getTerminalFailureRestart,
+  hasMediaProgress,
   hasEnoughStandbyBuffer,
+  isRecoverableMediaError,
+  MAX_CONSECUTIVE_FAILED_TRACKS,
+  MEDIA_PROGRESS_TIMEOUT_MS,
+  MEDIA_SOURCE_MAX_RETRIES,
+  type TerminalFailureState,
 } from './playbackTransition.ts'
 
 const queue: QueuedTrack[] = ['one', 'two'].map((id, index) => ({
@@ -72,4 +81,57 @@ test('does not advance again when the retiring slot ends', () => {
   }), 'wait-handoff')
   assert.equal(getEndedSlotAction('secondary', 'primary', null), 'ignore')
   assert.equal(getEndedSlotAction('primary', 'primary', null), 'advance')
+})
+
+test('classifies only network and source media errors as recoverable', () => {
+  assert.equal(getMediaErrorKind(1), 'aborted')
+  assert.equal(getMediaErrorKind(2), 'network')
+  assert.equal(getMediaErrorKind(3), 'decode')
+  assert.equal(getMediaErrorKind(4), 'source')
+  assert.equal(getMediaErrorKind(undefined), 'unknown')
+  assert.equal(isRecoverableMediaError(2), true)
+  assert.equal(isRecoverableMediaError(4), true)
+  assert.equal(isRecoverableMediaError(1), false)
+  assert.equal(isRecoverableMediaError(3), false)
+})
+
+test('uses the agreed recovery limits', () => {
+  assert.equal(MEDIA_PROGRESS_TIMEOUT_MS, 15_000)
+  assert.equal(MEDIA_SOURCE_MAX_RETRIES, 2)
+  assert.equal(MAX_CONSECUTIVE_FAILED_TRACKS, 2)
+})
+
+test('recognizes playback or buffer growth as real media progress', () => {
+  assert.equal(hasMediaProgress(10, 10.02, 20, 20), true)
+  assert.equal(hasMediaProgress(10, 10, 20, 20.06), true)
+  assert.equal(hasMediaProgress(10, 10.005, 20, 20.02), false)
+})
+
+test('advances a failed track according to repeat mode and stops after two failures', () => {
+  assert.deepEqual(getFailureTransition(queue, 0, 'off', 1), {
+    action: 'select',
+    autoPlay: true,
+    index: 1,
+  })
+  assert.deepEqual(getFailureTransition(queue, 1, 'off', 1), { action: 'none' })
+  assert.deepEqual(getFailureTransition(queue, 1, 'all', 1), {
+    action: 'select',
+    autoPlay: true,
+    index: 0,
+  })
+  assert.deepEqual(getFailureTransition(queue, 0, 'one', 1), { action: 'none' })
+  assert.deepEqual(getFailureTransition(queue, 0, 'all', 2), { action: 'none' })
+  assert.deepEqual(getFailureTransition(queue.slice(0, 1), 0, 'all', 1), { action: 'none' })
+})
+
+test('restarts a terminal failure with its original slot and saved position', () => {
+  const failure: TerminalFailureState = {
+    trackKey: 'id:first',
+    slot: 'secondary',
+    resumeTime: 73.5,
+  }
+
+  assert.deepEqual(getTerminalFailureRestart(failure, 'id:first'), failure)
+  assert.equal(getTerminalFailureRestart(failure, 'id:other'), null)
+  assert.equal(getTerminalFailureRestart(null, 'id:first'), null)
 })

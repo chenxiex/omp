@@ -5,6 +5,46 @@ export const HANDOFF_LEAD_MS = 120
 export const HANDOFF_MAX_OVERLAP_MS = 150
 export const HANDOFF_ARM_WINDOW_MS = 3_000
 export const STANDBY_BUFFER_SECONDS = 2
+export const MEDIA_PROGRESS_TIMEOUT_MS = 15_000
+export const MEDIA_SOURCE_MAX_RETRIES = 2
+export const MEDIA_RETRY_DELAY_MS = 1_000
+export const MAX_CONSECUTIVE_FAILED_TRACKS = 2
+
+export type MediaErrorKind = 'aborted' | 'network' | 'decode' | 'source' | 'unknown'
+
+export interface TerminalFailureState {
+  trackKey: string
+  slot: 'primary' | 'secondary'
+  resumeTime: number
+}
+
+export const getTerminalFailureRestart = (
+  failure: TerminalFailureState | null,
+  selectedTrackKey: string,
+) => failure?.trackKey === selectedTrackKey ? failure : null
+
+export const getMediaErrorKind = (code?: number | null): MediaErrorKind => {
+  if (code === 1) return 'aborted'
+  if (code === 2) return 'network'
+  if (code === 3) return 'decode'
+  if (code === 4) return 'source'
+  return 'unknown'
+}
+
+export const isRecoverableMediaError = (code?: number | null) => {
+  const kind = getMediaErrorKind(code)
+  return kind === 'network' || kind === 'source'
+}
+
+export const hasMediaProgress = (
+  previousTime: number,
+  currentTime: number,
+  previousBufferedEnd: number,
+  currentBufferedEnd: number,
+) => (
+  Math.abs(currentTime - previousTime) > 0.01
+  || currentBufferedEnd - previousBufferedEnd > 0.05
+)
 
 export interface BufferedRange {
   start: number
@@ -106,4 +146,19 @@ export const getEndedTransition = (
   }
 
   return { action: 'select', autoPlay: false, index: playQueue[0].index }
+}
+
+// 播放失败遵循循环模式，但连续失败达到上限时必须停止，避免列表循环无限请求。
+export const getFailureTransition = (
+  playQueue: QueuedTrack[],
+  currentIndex: number,
+  repeat: UiState['repeat'],
+  consecutiveFailures: number,
+): EndedTransition => {
+  if (consecutiveFailures >= MAX_CONSECUTIVE_FAILED_TRACKS) return { action: 'none' }
+
+  const target = getAutomaticTarget(playQueue, currentIndex, repeat)
+  return target && target.index !== currentIndex
+    ? { action: 'select', autoPlay: true, index: target.index }
+    : { action: 'none' }
 }

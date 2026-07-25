@@ -45,8 +45,13 @@ const useUrl = () => {
 
   useEffect(() => () => sourceCache.clear(), [sourceCache])
 
-  const resolveSource = useCallback(async (track: Track) => {
+  const resolveSource = useCallback(async (
+    track: Track,
+    options?: { forceRefresh?: boolean },
+  ) => {
     if (!accountKey) throw new Error('Cannot resolve a track without an account.')
+
+    if (options?.forceRefresh) sourceCache.invalidate(accountKey, track)
 
     const source = await sourceCache.resolve(accountKey, track)
     const queueState = usePlayQueueStore.getState()
