@@ -28,7 +28,7 @@ const ArtistView = () => {
       const allArtistNames = allSongs.flatMap(song => [
         ...(song.common.artists || []),
         ...(song.common.albumartists || [])
-      ]);
+      ])
 
       const uniqueArtists = new Set(allArtistNames)
 

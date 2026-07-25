@@ -1,5 +1,6 @@
 import { fixupConfigRules } from '@eslint/compat'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
 import tsParser from '@typescript-eslint/parser'
 import path from 'node:path'
@@ -18,8 +19,7 @@ const compat = new FlatCompat({
 export default [...fixupConfigRules(compat.extends(
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
-    'plugin:react-hooks/recommended',
-)), {
+)), ...reactHooks.configs['flat/recommended'], {
     plugins: {
         'react-refresh': reactRefresh,
     },

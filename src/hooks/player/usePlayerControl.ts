@@ -2,6 +2,7 @@ import usePlayQueueStore from '@/store/usePlayQueueStore'
 import usePlayerStore from '@/store/usePlayerStore'
 import useUiStore from '@/store/useUiStore'
 import shufflePlayQueue from '@/utils/shufflePlayQueue'
+import { getTrackSourceKey } from '@/utils/trackSourceCache'
 import { useEffect } from 'react'
 import { useShallow } from 'zustand/shallow'
 
@@ -15,11 +16,13 @@ const usePlayerControl = (player: HTMLVideoElement | null) => {
   const [
     updateAutoPlay,
     updateCurrentTime,
+    updateIsLoading,
   ] = usePlayerStore(
     useShallow(
       (state) => [
         state.updateAutoPlay,
         state.updateCurrentTime,
+        state.updateIsLoading,
       ]
     )
   )
@@ -47,7 +50,26 @@ const usePlayerControl = (player: HTMLVideoElement | null) => {
   // 播放开始
   const handleClickPlay = () => {
     updateAutoPlay(true)
-    player?.play()
+    if (!player) return
+
+    const selected = playQueue.find(item => item.index === currentIndex)
+    const targetKey = selected ? getTrackSourceKey(selected.track) : ''
+    // 新源尚未就绪时只记录播放意图，避免重新播放旧歌
+    if (!targetKey || player.dataset.trackKey !== targetKey) return
+
+    void player.play().catch(error => {
+      const queueState = usePlayQueueStore.getState()
+      const current = queueState.playQueue.find(item => item.index === queueState.currentIndex)
+      if (
+        !current
+        || player.dataset.trackKey !== targetKey
+        || getTrackSourceKey(current.track) !== targetKey
+      ) return
+
+      console.error('Failed to resume the current track.', error)
+      updateAutoPlay(false)
+      updateIsLoading(false)
+    })
   }
 
   // 播放暂停
