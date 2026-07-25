@@ -89,12 +89,21 @@ test('does not publish a source after its entry was cancelled', async () => {
 test('preserves the remote track version in the resolved source', async () => {
   const item = track('one')
   const updated = { ...item, cTag: 'new-ctag' }
-  const cache = new TrackSourceCache(async () => fetched(updated))
+  const thumbnail = {
+    width: 800,
+    height: 800,
+    url: 'https://thumbnail.test/one',
+  }
+  const cache = new TrackSourceCache(async () => ({
+    ...fetched(updated),
+    thumbnail,
+  }))
 
   const source = await cache.resolve('account', item)
 
   assert.equal(source.remoteTrack.cTag, 'new-ctag')
   assert.equal(source.accountId, 'account')
+  assert.equal(source.thumbnail, thumbnail)
 })
 
 test('invalidates a media URL that failed after Graph resolution', async () => {

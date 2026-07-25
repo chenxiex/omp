@@ -134,8 +134,8 @@ const usePlayerCore = (players: PlayerElements) => {
   const [playingTrackKey, setPlayingTrackKey] = useState('')
   const [slotRevision, setSlotRevision] = useState(0)
 
-  // 完整元数据仍沿用当前行为，只在歌曲成为 active 后读取
-  useMetaData(activeSource?.url ?? '')
+  // Range 元数据与 thumbnail 只在歌曲成为 active 后按需读取。
+  useMetaData(activeSource?.url ?? '', activeSource?.thumbnail)
 
   const playersRef = useRef(players)
   const activeSlotRef = useRef<PlayerSlotId>('primary')

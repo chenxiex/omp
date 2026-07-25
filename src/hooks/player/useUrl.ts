@@ -29,7 +29,7 @@ const useUrl = () => {
         track.path,
         signal,
         'high',
-        false,
+        true,
       )
       const url = remoteItem?.['@microsoft.graph.downloadUrl']
       if (!url) throw new Error('No download URL returned for track.')
@@ -37,6 +37,7 @@ const useUrl = () => {
       return {
         url,
         remoteTrack: remoteItemToTrack(remoteItem),
+        thumbnail: remoteItem.thumbnails?.[0]?.large,
       }
     }),
     [accountKey],

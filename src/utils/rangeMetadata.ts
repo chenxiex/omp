@@ -327,7 +327,9 @@ const parseOgg = async (reader: HttpRangeReader, fileSize: number): Promise<Text
 
 const filenameTitle = (name: string) => name.replace(/\.[^.]+$/, '').trim() || name
 
-export const getRangeMetadata = async (file: FileNode, url: string, signal?: AbortSignal): Promise<MetaData> => {
+type MetadataFile = Pick<FileNode, 'id' | 'name' | 'size'>
+
+export const getRangeMetadata = async (file: MetadataFile, url: string, signal?: AbortSignal): Promise<MetaData> => {
   const reader = new HttpRangeReader(url, undefined, signal)
   const signature = await reader.read(0, Math.min(4, file.size))
   let tags: TextTags = {}

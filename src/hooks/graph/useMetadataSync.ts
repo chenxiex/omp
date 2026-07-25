@@ -10,6 +10,7 @@ import type { FileNode } from '@/types/file'
 import { getRangeMetadata } from '@/utils/rangeMetadata'
 import { RangeRequestError } from '@/utils/rangeReader'
 import pLimit from 'p-limit'
+import { persistMetadata } from '@/utils/metadataPersistence'
 
 const MAX_ATTEMPTS = 3
 const RETRY_BASE_DELAY_MS = 1_000
@@ -119,18 +120,9 @@ const useMetadataSync = () => {
             }
 
             if (!isCurrentRun()) return
-            await db.transaction('rw', db.metadata, db.nodes, async transaction => {
-              const handleAbort = () => transaction.abort()
-              signal.addEventListener('abort', handleAbort, { once: true })
-              try {
-                throwIfAborted(signal)
-                await db.metadata.put(metadata)
-                throwIfAborted(signal)
-                await db.nodes.update(node.id, { metadataState: 'completed' })
-              } finally {
-                signal.removeEventListener('abort', handleAbort)
-              }
-            })
+            // Background sync does not fetch thumbnails. The shared writer keeps
+            // a cover that may already have been persisted by playback.
+            await persistMetadata(db, metadata, undefined, signal)
           } catch (error) {
             if (!isCurrentRun()) return
             console.error(`Failed to get metadata for ${node.name}:`, error)
