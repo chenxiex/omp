@@ -1,108 +1,134 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import usePlayerControl from './usePlayerControl'
 import usePlayerStore from '@/store/usePlayerStore'
 import { useShallow } from 'zustand/shallow'
 import usePlayQueueStore from '@/store/usePlayQueueStore'
 
-const useMediaSession = (player: HTMLVideoElement | null) => {
+const defaultSkipTime = 10
 
-  const [
-    currentMetaData,
-    cover,
-  ] = usePlayerStore(
+const useMediaSession = (player: HTMLVideoElement | null) => {
+  const [currentMetaData, cover, autoPlay] = usePlayerStore(
     useShallow(
       (state) => [
         state.currentMetaData,
         state.cover,
-      ]
-    )
+        state.autoPlay,
+      ],
+    ),
   )
 
-  const {
-    seekTo,
-    handleClickPlay,
-    handleClickPause,
-    handleClickNext,
-    handleClickPrev,
-    handleClickSeekforward,
-    handleClickSeekbackward,
-  } = usePlayerControl(player)
+  const controls = usePlayerControl(player)
+  // action handler 始终调用最新的队列和播放器操作
+  const controlsRef = useRef(controls)
+  const playerRef = useRef(player)
+  controlsRef.current = controls
+  playerRef.current = player
 
   const playQueue = usePlayQueueStore.use.playQueue()
   const currentIndex = usePlayQueueStore.use.currentIndex()
+  const currentTrack = useMemo(
+    () => playQueue.find(item => item.index === currentIndex),
+    [currentIndex, playQueue],
+  )
 
-  const currentTrack = useMemo(() => playQueue?.find(item => item.index === currentIndex), [currentIndex, playQueue])
+  // 新源取得有效时长后再更新系统媒体进度
+  const updatePositionState = useCallback(() => {
+    const activePlayer = playerRef.current
+    if (
+      !('mediaSession' in navigator)
+      || !activePlayer
+      || !Number.isFinite(activePlayer.duration)
+      || activePlayer.duration <= 0
+      || !Number.isFinite(activePlayer.playbackRate)
+      || activePlayer.playbackRate <= 0
+    ) return
 
-  const defaultSkipTime = 10
-  // 更新 MediaSession 播放进度
-  const updatePositionState = useCallback(
-    () => {
-      if ('setPositionState' in navigator.mediaSession && player && !isNaN(player.duration)) {
-        console.log('Update MediaSession Position State')
-        navigator.mediaSession.setPositionState({
-          duration: player.duration,
-          playbackRate: player.playbackRate,
-          position: player.currentTime,
-        })
+    navigator.mediaSession.setPositionState({
+      duration: activePlayer.duration,
+      playbackRate: activePlayer.playbackRate,
+      position: Math.min(Math.max(activePlayer.currentTime, 0), activePlayer.duration),
+    })
+  }, [])
+
+  // action handler 只随播放器页面挂载和卸载，不随 active slot 重建
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+
+    const setHandler = (
+      action: MediaSessionAction,
+      handler: MediaSessionActionHandler | null,
+    ) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, handler)
+      } catch (error) {
+        console.warn(`Media Session action ${action} is not supported.`, error)
       }
-    },
-    [player]
-  )
+    }
 
-  useEffect(
-    () => {
-      if (player)
-        player.onplaying = () => {
-          updatePositionState()
-        }
-    },
-    [player, updatePositionState]
-  )
+    setHandler('play', () => controlsRef.current.handleClickPlay())
+    setHandler('pause', () => controlsRef.current.handleClickPause())
+    setHandler('nexttrack', () => controlsRef.current.handleClickNext())
+    setHandler('previoustrack', () => controlsRef.current.handleClickPrev())
+    setHandler('seekbackward', details => {
+      controlsRef.current.handleClickSeekbackward(details.seekOffset ?? defaultSkipTime)
+    })
+    setHandler('seekforward', details => {
+      controlsRef.current.handleClickSeekforward(details.seekOffset ?? defaultSkipTime)
+    })
+    setHandler('seekto', details => {
+      if (details.seekTime !== undefined) controlsRef.current.seekTo(details.seekTime)
+    })
 
-  // 设置 MediaSession
-  useEffect(
-    () => {
-      if ('mediaSession' in navigator && (currentMetaData || currentTrack)) {
-        console.log('Set MediaSession')
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: currentMetaData?.common.title || currentTrack?.track.name,
-          artist: currentMetaData?.common.artist,
-          album: currentMetaData?.common.album,
-          artwork: [{ src: cover }]
-        })
-        navigator.mediaSession.setActionHandler('play', () => handleClickPlay())
-        navigator.mediaSession.setActionHandler('pause', () => handleClickPause())
-        navigator.mediaSession.setActionHandler('nexttrack', () => handleClickNext())
-        navigator.mediaSession.setActionHandler('previoustrack', () => handleClickPrev())
-        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-          const skipTime = details.seekOffset || defaultSkipTime
-          handleClickSeekbackward(skipTime)
-        })
-        navigator.mediaSession.setActionHandler('seekforward', (details) => {
-          const skipTime = details.seekOffset || defaultSkipTime
-          handleClickSeekforward(skipTime)
-        })
-        navigator.mediaSession.setActionHandler('seekto', (details) => {
-          if (details.seekTime) {
-            seekTo(details.seekTime)
-          }
-        })
-        return () => {
-          navigator.mediaSession.metadata = null
-          navigator.mediaSession.setPositionState(undefined)
-          navigator.mediaSession.setActionHandler('play', null)
-          navigator.mediaSession.setActionHandler('pause', null)
-          navigator.mediaSession.setActionHandler('nexttrack', null)
-          navigator.mediaSession.setActionHandler('previoustrack', null)
-          navigator.mediaSession.setActionHandler('seekbackward', null)
-          navigator.mediaSession.setActionHandler('seekforward', null)
-          navigator.mediaSession.setActionHandler('seekto', null)
-        }
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cover, currentMetaData, currentTrack]
-  )
+    return () => {
+      navigator.mediaSession.metadata = null
+      navigator.mediaSession.setPositionState(undefined)
+      setHandler('play', null)
+      setHandler('pause', null)
+      setHandler('nexttrack', null)
+      setHandler('previoustrack', null)
+      setHandler('seekbackward', null)
+      setHandler('seekforward', null)
+      setHandler('seekto', null)
+    }
+  }, [])
+
+  // 歌曲变化时原位更新 metadata，避免主动终止 Media Session
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !currentTrack) return
+
+    const metadataMatchesTrack = currentMetaData?.id === currentTrack.track.id
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: metadataMatchesTrack
+        ? currentMetaData.common.title || currentTrack.track.name
+        : currentTrack.track.name,
+      artist: metadataMatchesTrack ? currentMetaData.common.artist : undefined,
+      album: metadataMatchesTrack ? currentMetaData.common.album : undefined,
+      artwork: [{ src: metadataMatchesTrack ? cover : './cover.svg' }],
+    })
+  }, [cover, currentMetaData, currentTrack])
+
+  // 加载和缓冲期间沿用播放意图，保持系统通知为 playing
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+    navigator.mediaSession.playbackState = currentTrack
+      ? (autoPlay ? 'playing' : 'paused')
+      : 'none'
+  }, [autoPlay, currentTrack])
+
+  // 新源 metadata 就绪或开始播放时刷新系统进度
+  useEffect(() => {
+    if (!player) return
+    updatePositionState()
+    player.addEventListener('loadedmetadata', updatePositionState)
+    player.addEventListener('playing', updatePositionState)
+    player.addEventListener('pause', updatePositionState)
+
+    return () => {
+      player.removeEventListener('loadedmetadata', updatePositionState)
+      player.removeEventListener('playing', updatePositionState)
+      player.removeEventListener('pause', updatePositionState)
+    }
+  }, [player, updatePositionState])
 }
 
 export default useMediaSession

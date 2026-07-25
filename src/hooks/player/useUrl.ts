@@ -1,87 +1,85 @@
-import usePlayerStore from '@/store/usePlayerStore'
 import usePlayQueueStore from '@/store/usePlayQueueStore'
+import type { Track } from '@/types/file'
 import { remoteItemToTrack } from '@/utils/track'
+import {
+  getTrackSourceKey,
+  TrackSourceCache,
+  type ResolvedTrackSource,
+} from '@/utils/trackSourceCache'
 import { useMsal } from '@azure/msal-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import useGraph from '../graph/useGraph'
 import useUser from '../graph/useUser'
 
-const useUrl = (player: HTMLVideoElement | null) => {
+const useUrl = () => {
   const { instance } = useMsal()
   const { account } = useUser()
-
   const { getFileData } = useGraph(instance, account)
+  const getFileDataRef = useRef(getFileData)
+  getFileDataRef.current = getFileData
 
-  const updateAutoPlay = usePlayerStore.use.updateAutoPlay()
-  const updateIsLoading = usePlayerStore.use.updateIsLoading()
+  const accountKey = account?.homeAccountId ?? account?.username ?? ''
+  // 当前曲和 standby 共用解析器，避免同一首歌重复请求 Graph
+  const sourceCache = useMemo(
+    () => new TrackSourceCache(async (track, signal) => {
+      if (!accountKey) throw new Error('Cannot resolve a track without an account.')
 
-  const playQueue = usePlayQueueStore.use.playQueue()
-  const currentIndex = usePlayQueueStore.use.currentIndex()
-  const updatePlayQueue = usePlayQueueStore.use.updatePlayQueue()
+      const remoteItem = await getFileDataRef.current(
+        track.id,
+        track.path,
+        signal,
+        'high',
+        false,
+      )
+      const url = remoteItem?.['@microsoft.graph.downloadUrl']
+      if (!url) throw new Error('No download URL returned for track.')
 
-  const [url, setUrl] = useState('')
-
-  const currentTrack = useMemo(() => playQueue?.find(item => item.index === currentIndex), [currentIndex, playQueue])
-  const currentTrackPath = useMemo(() => currentTrack?.track.path?.join('/'), [currentTrack])
-
-  // 获取当前播放文件链接
-  useEffect(() => {
-    const controller = new AbortController()
-
-    const fetchData = async () => {
-      if (!currentTrack || !account) {
-        return
+      return {
+        url,
+        remoteTrack: remoteItemToTrack(remoteItem),
       }
+    }),
+    [accountKey],
+  )
 
-      if (player) {
-        player.src = ''
-      }
+  useEffect(() => () => sourceCache.clear(), [sourceCache])
 
-      updateIsLoading(true)
+  const resolveSource = useCallback(async (track: Track) => {
+    if (!accountKey) throw new Error('Cannot resolve a track without an account.')
 
-      try {
-        const remoteItem = await getFileData(
-          currentTrack.track.id,
-          currentTrack.track.path,
-          controller.signal
-        )
+    const source = await sourceCache.resolve(accountKey, track)
+    const queueState = usePlayQueueStore.getState()
+    const hasUpdatedTrack = queueState.playQueue.some(item => (
+      getTrackSourceKey(item.track) === source.trackKey
+      && item.track.cTag !== source.remoteTrack.cTag
+    ))
 
-        if (!remoteItem || !remoteItem['@microsoft.graph.downloadUrl']) {
-          throw new Error('No download url')
-        }
-
-        if (remoteItem.cTag !== currentTrack.track.cTag) {
-          console.log(`File ${currentTrack.track.name} has been updated. Updating local entry.`)
-          const newTrack = remoteItemToTrack(remoteItem)
-          updatePlayQueue(playQueue.map(item => item.index === currentIndex ? { index: currentIndex, track: newTrack } : item))
-        }
-
-        setUrl(remoteItem['@microsoft.graph.downloadUrl'])
-
-      } catch (error) {
-        if (typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError') {
-          console.log('Fetch aborted for previous track.')
-        } else {
-          console.error(error)
-          updateAutoPlay(false)
-          player?.pause()
-        }
-      } finally {
-        // if (!controller.signal.aborted) {
-        //   updateIsLoading(false)
-        // }
-      }
+    if (hasUpdatedTrack) {
+      // standby 解析到新版本时也同步队列，但不改变歌曲索引
+      queueState.updatePlayQueue(queueState.playQueue.map(item => (
+        getTrackSourceKey(item.track) === source.trackKey
+          ? { ...item, track: source.remoteTrack }
+          : item
+      )))
     }
 
-    fetchData()
+    return source
+  }, [accountKey, sourceCache])
 
-    return () => {
-      controller.abort()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTrackPath, account])
+  const retainSources = useCallback((tracks: Track[]) => {
+    sourceCache.retain(accountKey, tracks)
+  }, [accountKey, sourceCache])
 
-  return url
+  const invalidateSource = useCallback((source: ResolvedTrackSource) => {
+    if (accountKey) sourceCache.invalidateKey(accountKey, source.trackKey)
+  }, [accountKey, sourceCache])
+
+  return {
+    accountKey,
+    invalidateSource,
+    resolveSource,
+    retainSources,
+  }
 }
 
 export default useUrl
