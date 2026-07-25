@@ -1,14 +1,20 @@
 import usePlayQueueStore from '@/store/usePlayQueueStore'
 import { isAudio } from '@/utils/checkFileType'
-import getNetMetaData from '@/utils/getNetMetaData'
 import { useEffect, useMemo } from 'react'
 import useUser from '@/hooks/graph/useUser'
 import useDb from '@/hooks/useDb'
 import usePlayerStore from '@/store/usePlayerStore'
 import { useShallow } from 'zustand/shallow'
 import createImageUrl from '@/utils/createImageUrl'
+import type { ThumbnailItem } from '@/types/file'
+import { getRangeMetadata } from '@/utils/rangeMetadata'
+import {
+  hasPersistedThumbnail,
+  persistMetadata,
+  shouldRefreshPlaybackMetadata,
+} from '@/utils/metadataPersistence'
 
-const useMetaData = (url: string) => {
+const useMetaData = (url: string, thumbnail?: ThumbnailItem) => {
   const { account } = useUser()
 
   const db = useDb(account)
@@ -37,7 +43,7 @@ const useMetaData = (url: string) => {
   // 更新当前 metadata
   useEffect(
     () => {
-      (async () => {
+      void (async () => {
         if (currentTrack?.track.id && db) {
           const metaData = await db.metadata.get(currentTrack.track.id)
 
@@ -63,29 +69,41 @@ const useMetaData = (url: string) => {
     [metadataUpdate, db, currentTrack, updateCover, updateCurrentMetaData]
   )
 
-  // 获取在线 metadata
+  // 使用 Range 请求补全 metadata，并按需持久化 OneDrive thumbnail。
   useEffect(
     () => {
-      (async () => {
+      const controller = new AbortController()
+      const { signal } = controller
+
+      void (async () => {
         if (currentTrack && currentTrack.track.id && isAudio(currentTrack.track.name) && db && url) {
           const localMetaData = await db.metadata.get(currentTrack.track.id)
-          if (!localMetaData || localMetaData.source !== 'stream') {
-            console.log('Start get net metadata: ', currentTrack.track)
-            const result = await getNetMetaData(currentTrack.track, url)
-            if (result) {
-              await db.transaction('rw', db.metadata, db.pictures, db.nodes, async () => {
-                await db.metadata.put(result.metaData)
-                await db.pictures.bulkPut(result.pictureData)
-                await db.nodes.update(currentTrack.track.id, { metadataState: 'completed' })
-              })
-              updateMetadataUpdate()
-            }
-          }
+          const node = await db.nodes.get(currentTrack.track.id)
+          const needsMetadata = shouldRefreshPlaybackMetadata(
+            localMetaData,
+            node?.metadataState,
+          )
+          const needsThumbnail = Boolean(thumbnail) && !hasPersistedThumbnail(localMetaData)
+
+          if (!needsMetadata && !needsThumbnail) return
+
+          const metadata = needsMetadata
+            ? await getRangeMetadata(currentTrack.track, url, signal)
+            : localMetaData
+          if (!metadata) return
+
+          await persistMetadata(db, metadata, needsThumbnail ? thumbnail : undefined, signal)
+          if (!signal.aborted) updateMetadataUpdate()
         }
-      })()
+      })().catch(error => {
+        if (!signal.aborted) {
+          console.error('Failed to refresh playback metadata:', error)
+        }
+      })
+
+      return () => controller.abort()
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [url]
+    [currentTrack, db, thumbnail, updateMetadataUpdate, url]
   )
 
 }

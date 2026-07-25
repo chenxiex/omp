@@ -13,7 +13,7 @@ import CloseFullscreenRoundedIcon from '@mui/icons-material/CloseFullscreenRound
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded'
 import CloudDownloadRoundedIcon from '@mui/icons-material/CloudDownloadRounded'
 import { Box, Button, Dialog, DialogActions, DialogTitle, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import usePlayQueueStore from '@/store/usePlayQueueStore'
 import { useNavigate } from 'react-router-dom'
 import usePlaylistsStore from '@/store/usePlaylistsStore'
@@ -24,8 +24,11 @@ import usePlayerStore from '@/store/usePlayerStore'
 import { useLingui } from '@lingui/react/macro'
 import useUser from '@/hooks/graph/useUser'
 import useDb from '@/hooks/useDb'
-import getNetMetaData from '@/utils/getNetMetaData'
 import checkFileType from '@/utils/checkFileType'
+import useGraph from '@/hooks/graph/useGraph'
+import { useMsal } from '@azure/msal-react'
+import { getRangeMetadata } from '@/utils/rangeMetadata'
+import { persistMetadata } from '@/utils/metadataPersistence'
 
 const PlayerMenu = ({ player }: { player: HTMLVideoElement | null }) => {
   const { t } = useLingui()
@@ -33,24 +36,22 @@ const PlayerMenu = ({ player }: { player: HTMLVideoElement | null }) => {
 
   const { account } = useUser()
   const db = useDb(account)
+  const { instance } = useMsal()
+  const { getFileData } = useGraph(instance, account)
 
-  const [
-    currentMetaData,
-    updateMetadataUpdate,
-  ] = usePlayerStore(
-    useShallow(
-      (state) => [
-        state.currentMetaData,
-        state.updateMetadataUpdate,
-      ]
-    )
-  )
+  const updateMetadataUpdate = usePlayerStore.use.updateMetadataUpdate()
 
   const playQueue = usePlayQueueStore.use.playQueue()
   const currentIndex = usePlayQueueStore.use.currentIndex()
 
   const currentTrack = useMemo(() => playQueue?.find((item) => item.index === currentIndex), [currentIndex, playQueue])
   const fileType = currentTrack && checkFileType(currentTrack.track.name)
+  const metadataControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => () => {
+    metadataControllerRef.current?.abort()
+    metadataControllerRef.current = null
+  }, [currentTrack?.track.id])
 
   const [
     audioViewTheme,
@@ -146,12 +147,39 @@ const PlayerMenu = ({ player }: { player: HTMLVideoElement | null }) => {
 
   const reFetchMetadata = async () => {
     handleCloseMenu()
-    if (!currentMetaData?.id || !player?.src || !currentTrack || !db) return
-    const result = await getNetMetaData(currentTrack.track, player.src)
-    if (result) {
-      await db.metadata.put(result.metaData)
-      await db.pictures.bulkPut(result.pictureData)
-      updateMetadataUpdate()
+    if (!currentTrack || !db) return
+
+    metadataControllerRef.current?.abort()
+    const controller = new AbortController()
+    metadataControllerRef.current = controller
+
+    try {
+      const remoteItem = await getFileData(
+        currentTrack.track.id,
+        currentTrack.track.path,
+        controller.signal,
+        'high',
+        true,
+      )
+      const url = remoteItem['@microsoft.graph.downloadUrl'] ?? player?.src
+      if (!url) throw new Error('No download URL returned for metadata refresh.')
+
+      const metadata = await getRangeMetadata(currentTrack.track, url, controller.signal)
+      await persistMetadata(
+        db,
+        metadata,
+        remoteItem.thumbnails?.[0]?.large,
+        controller.signal,
+      )
+      if (!controller.signal.aborted) updateMetadataUpdate()
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        console.error('Failed to re-fetch metadata:', error)
+      }
+    } finally {
+      if (metadataControllerRef.current === controller) {
+        metadataControllerRef.current = null
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import type { Track } from '../types/file.ts'
+import type { ThumbnailItem, Track } from '../types/file.ts'
 
 // Graph 临时下载地址只在当前播放会话中短期复用
 export const TRACK_SOURCE_MAX_AGE_MS = 45 * 60 * 1000
@@ -6,6 +6,7 @@ export const TRACK_SOURCE_MAX_AGE_MS = 45 * 60 * 1000
 export interface FetchedTrackSource {
   url: string
   remoteTrack: Track
+  thumbnail?: ThumbnailItem
 }
 
 export interface ResolvedTrackSource extends FetchedTrackSource {
