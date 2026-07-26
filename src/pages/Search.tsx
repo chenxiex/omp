@@ -51,6 +51,11 @@ import { LibraryDB } from '@/db'
 import useUiStore from '@/store/useUiStore'
 import usePlayQueueStore from '@/store/usePlayQueueStore'
 import usePlayerStore from '@/store/usePlayerStore'
+import LibrarySongMenu, {
+  LibrarySongMenuButton,
+  LibrarySongMenuPosition,
+  LibrarySongMenuTarget,
+} from '@/components/CommonList/LibrarySongMenu'
 
 type SearchResult =
   | { kind: 'file', id: string, node: FileNode }
@@ -285,7 +290,12 @@ const Search = ({ type = 'icon' }: { type?: 'icon' | 'bar' }) => {
                   disableFAB
                   func={{ open: async index => open(index) }}
                 />
-                : db && <LibrarySearchList db={db} results={localResults} onOpen={open} />
+                : db && <LibrarySearchList
+                  db={db}
+                  results={localResults}
+                  onOpen={open}
+                  onNavigate={handleCloseSearch}
+                />
             }
           </DialogContent>
         </animated.div>
@@ -298,46 +308,67 @@ const LibrarySearchList = ({
   db,
   results,
   onOpen,
+  onNavigate,
 }: {
   db: LibraryDB
   results: LibrarySearchResult[]
   onOpen: (index: number) => void
-}) => (
-  <Box sx={{ width: '100%', height: '100%' }}>
-    <AutoSizer>
-      {({ height, width }) => (
-        <FixedSizeList
-          height={height}
-          width={width}
-          itemCount={results.length}
-          itemSize={72}
-          overscanCount={10}
-        >
-          {({ index, style }) => (
-            <LibrarySearchRow
-              key={results[index].id}
-              db={db}
-              result={results[index]}
-              style={style}
-              onOpen={() => onOpen(index)}
-            />
-          )}
-        </FixedSizeList>
-      )}
-    </AutoSizer>
-  </Box>
-)
+  onNavigate: () => void
+}) => {
+  const [menuTarget, setMenuTarget] = useState<LibrarySongMenuTarget | null>(null)
+
+  return (
+    <Box sx={{ width: '100%', height: '100%' }}>
+      <AutoSizer>
+        {({ height, width }) => (
+          <FixedSizeList
+            height={height}
+            width={width}
+            itemCount={results.length}
+            itemSize={72}
+            overscanCount={10}
+          >
+            {({ index, style }) => {
+              const result = results[index]
+
+              return (
+                <LibrarySearchRow
+                  key={result.id}
+                  db={db}
+                  result={result}
+                  style={style}
+                  onOpen={() => onOpen(index)}
+                  // 专辑和艺术家结果只负责导航，三点菜单仅对可播放的歌曲开放。
+                  onOpenMenu={result.kind === 'song'
+                    ? anchorPosition => setMenuTarget({ anchorPosition, fileNode: result.node })
+                    : undefined}
+                />
+              )
+            }}
+          </FixedSizeList>
+        )}
+      </AutoSizer>
+      <LibrarySongMenu
+        target={menuTarget}
+        onClose={() => setMenuTarget(null)}
+        onNavigate={onNavigate}
+      />
+    </Box>
+  )
+}
 
 const LibrarySearchRow = ({
   db,
   result,
   style,
   onOpen,
+  onOpenMenu,
 }: {
   db: LibraryDB
   result: LibrarySearchResult
   style: CSSProperties
   onOpen: () => void
+  onOpenMenu?: (anchorPosition: LibrarySongMenuPosition) => void
 }) => {
   const metadata = result.kind === 'artist' ? undefined : result.metadata
   const coverUrl = useCreateImageUrl(db, metadata)
@@ -358,7 +389,11 @@ const LibrarySearchRow = ({
       : undefined
 
   return (
-    <ListItem style={style} disablePadding>
+    <ListItem
+      style={style}
+      disablePadding
+      secondaryAction={onOpenMenu && <LibrarySongMenuButton onClick={onOpenMenu} />}
+    >
       <ListItemButton onClick={onOpen}>
         <ListItemAvatar>
           <Avatar

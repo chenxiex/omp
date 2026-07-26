@@ -10,9 +10,14 @@ import { MetaData } from '@/types/metaData'
 import { fileNodeToTrack } from '@/utils/track'
 import { Avatar, List, ListItem, ListItemAvatar, ListItemButton, ListItemText } from '@mui/material'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CSSProperties } from 'react'
+import { CSSProperties, useState } from 'react'
 import { AutoSizer } from 'react-virtualized'
 import { FixedSizeList } from 'react-window'
+import LibrarySongMenu, {
+  LibrarySongMenuButton,
+  LibrarySongMenuPosition,
+  LibrarySongMenuTarget,
+} from '@/components/CommonList/LibrarySongMenu'
 
 const SongView = () => {
   const { account } = useUser()
@@ -23,6 +28,7 @@ const SongView = () => {
   const updatePlayQueue = usePlayQueueStore.use.updatePlayQueue()
   const updateCurrentIndex = usePlayQueueStore.use.updateCurrentIndex()
   const updateAutoPlay = usePlayerStore.use.updateAutoPlay()
+  const [menuTarget, setMenuTarget] = useState<LibrarySongMenuTarget | null>(null)
 
   const sortedMetadataIds = useLiveQuery(
     async () => await db?.metadata.orderBy('common.title').primaryKeys(),
@@ -73,30 +79,34 @@ const SongView = () => {
   }
 
   return (
-    <List sx={{ width: '100%', height: '100%' }}>
-      <AutoSizer>
-        {({ height, width }) => (
-          <FixedSizeList
-            height={height}
-            width={width}
-            itemCount={listItems.length}
-            itemSize={72}
-            overscanCount={10}
-          >
-            {({ index, style }) => (
-              <Row
-                key={listItems[index].node.id ?? index}
-                style={style}
-                db={db}
-                fileNode={listItems[index].node}
-                song={listItems[index].meta}
-                onPlay={() => open(index)}
-              />
-            )}
-          </FixedSizeList>
-        )}
-      </AutoSizer>
-    </List>
+    <>
+      <List sx={{ width: '100%', height: '100%' }}>
+        <AutoSizer>
+          {({ height, width }) => (
+            <FixedSizeList
+              height={height}
+              width={width}
+              itemCount={listItems.length}
+              itemSize={72}
+              overscanCount={10}
+            >
+              {({ index, style }) => (
+                <Row
+                  key={listItems[index].node.id ?? index}
+                  style={style}
+                  db={db}
+                  fileNode={listItems[index].node}
+                  song={listItems[index].meta}
+                  onPlay={() => open(index)}
+                  onOpenMenu={anchorPosition => setMenuTarget({ anchorPosition, fileNode: listItems[index].node })}
+                />
+              )}
+            </FixedSizeList>
+          )}
+        </AutoSizer>
+      </List>
+      <LibrarySongMenu target={menuTarget} onClose={() => setMenuTarget(null)} />
+    </>
   )
 }
 
@@ -107,18 +117,25 @@ const Row = (
     fileNode,
     song,
     onPlay,
+    onOpenMenu,
   }: {
     style: CSSProperties,
     db: LibraryDB,
     fileNode: FileNode,
     song: MetaData | undefined,
     onPlay: () => void,
+    onOpenMenu: (anchorPosition: LibrarySongMenuPosition) => void,
   }
 ) => {
   const coverUrl = useCreateImageUrl(db, song)
 
   return (
-    <ListItem key={song?.id ?? fileNode.id} style={style} disablePadding>
+    <ListItem
+      key={song?.id ?? fileNode.id}
+      style={style}
+      disablePadding
+      secondaryAction={<LibrarySongMenuButton onClick={onOpenMenu} />}
+    >
       <ListItemButton onClick={onPlay}>
         <ListItemAvatar>
           <Avatar

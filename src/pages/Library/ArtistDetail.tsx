@@ -9,7 +9,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import Loading from '../Loading'
 import useUiStore from '@/store/useUiStore'
 import useCreateImageUrl from '@/hooks/useCreateImageUrl'
-import { CSSProperties, useMemo } from 'react'
+import { CSSProperties, useMemo, useState } from 'react'
 import { AutoSizer } from 'react-virtualized'
 import { FixedSizeList } from 'react-window'
 import { FileNode } from '@/types/file'
@@ -19,6 +19,11 @@ import ShuffleIcon from '@mui/icons-material/Shuffle'
 import shufflePlayQueue from '@/utils/shufflePlayQueue'
 import { fileNodeToTrack } from '@/utils/track'
 import { LibraryDB } from '@/db'
+import LibrarySongMenu, {
+  LibrarySongMenuButton,
+  LibrarySongMenuPosition,
+  LibrarySongMenuTarget,
+} from '@/components/CommonList/LibrarySongMenu'
 
 const ArtistDetail = () => {
   const params = useParams<{ artist: string }>()
@@ -33,6 +38,7 @@ const ArtistDetail = () => {
   const updatePlayQueue = usePlayQueueStore.use.updatePlayQueue()
   const updateCurrentIndex = usePlayQueueStore.use.updateCurrentIndex()
   const updateAutoPlay = usePlayerStore.use.updateAutoPlay()
+  const [menuTarget, setMenuTarget] = useState<LibrarySongMenuTarget | null>(null)
 
   const fileNodes = useLiveQuery(async () => await db?.nodes.where('type').equals('audio').toArray(), [db])
   const fileNodeIds = useMemo(() => fileNodes?.map(node => node.id) ?? [], [fileNodes])
@@ -145,6 +151,7 @@ const ArtistDetail = () => {
                     fileNode={item.node}
                     song={item.meta}
                     onPlay={() => open(index)}
+                    onOpenMenu={anchorPosition => setMenuTarget({ anchorPosition, fileNode: item.node })}
                   />
                 )
               }}
@@ -152,6 +159,7 @@ const ArtistDetail = () => {
           )}
         </AutoSizer>
       </Box>
+      <LibrarySongMenu target={menuTarget} onClose={() => setMenuTarget(null)} />
     </Box>
   )
 }
@@ -163,18 +171,25 @@ const SongRow = (
     fileNode,
     song,
     onPlay,
+    onOpenMenu,
   }: {
     style: CSSProperties,
     db: LibraryDB,
     fileNode: FileNode,
     song: MetaData | undefined,
     onPlay: () => void,
+    onOpenMenu: (anchorPosition: LibrarySongMenuPosition) => void,
   }
 ) => {
   const coverUrl = useCreateImageUrl(db, song)
 
   return (
-    <ListItem key={song?.id ?? fileNode.id} style={style} disablePadding>
+    <ListItem
+      key={song?.id ?? fileNode.id}
+      style={style}
+      disablePadding
+      secondaryAction={<LibrarySongMenuButton onClick={onOpenMenu} />}
+    >
       <ListItemButton onClick={onPlay}>
         <ListItemAvatar>
           <Avatar

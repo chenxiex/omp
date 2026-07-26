@@ -1,16 +1,14 @@
 import { useNavigate } from 'react-router-dom'
-import shortUUID from 'short-uuid'
-import { Menu, MenuItem, ListItemText, Button, Dialog, DialogActions, DialogTitle, List, ListItem, ListItemButton, ListItemIcon } from '@mui/material'
-import PlaylistAddRoundedIcon from '@mui/icons-material/PlaylistAddRounded'
-import ListRoundedIcon from '@mui/icons-material/ListRounded'
+import { Menu, MenuItem, ListItemText } from '@mui/material'
 import usePlayQueueStore from '@/store/usePlayQueueStore'
-import usePlaylistsStore from '@/store/usePlaylistsStore'
 import useUiStore from '@/store/useUiStore'
 import { FileNode, Track } from '@/types/file'
 import { useShallow } from 'zustand/shallow'
 import { useLingui } from '@lingui/react/macro'
 import { isAudio, isVideo } from '@/utils/checkFileType'
 import { fileNodeToTrack } from '@/utils/track'
+import { appendTracksToPlayQueue, insertTracksNextInPlayQueue } from '@/utils/playQueue'
+import AddToPlaylistDialog from './AddToPlaylistDialog'
 
 const CommonMenu = (
   {
@@ -50,11 +48,9 @@ const CommonMenu = (
   const navigate = useNavigate()
 
   const playQueue = usePlayQueueStore.use.playQueue()
+  const currentIndex = usePlayQueueStore.use.currentIndex()
   const updatePlayQueue = usePlayQueueStore.use.updatePlayQueue()
 
-  const [playlists, insertPlaylist, insertFilesToPlaylist] = usePlaylistsStore(
-    useShallow((state) => [state.playlists, state.insertPlaylist, state.insertFilesToPlaylist])
-  )
   const [updateAudioViewIsShow, updateVideoViewIsShow, updatePlayQueueIsShow] = useUiStore(
     useShallow((state) => [state.updateAudioViewIsShow, state.updateVideoViewIsShow, state.updatePlayQueueIsShow])
   )
@@ -64,59 +60,26 @@ const CommonMenu = (
     setAnchorEl(null)
   }
 
-  // 新建播放列表
-  const addNewPlaylist = () => {
-    const id = shortUUID().generate()
-    insertPlaylist({ id, name: t`New playlist`, files: [] })
-  }
-
-  // 添加到播放列表
-  const addToPlaylist = (id: string) => {
-    if (typeof selectIndex === 'number') {
-      insertFilesToPlaylist(id, [
-        fileNodeToTrack(listData[selectIndex]),
-      ])
-      setSelectIndex(null)
-    } else if (selectIndexArray.length > 0) {
-      insertFilesToPlaylist(id,
-        selectIndexArray
-          .filter(index => isAudio(listData[index].name) || isVideo(listData[index].name))
-          .map(index => fileNodeToTrack(listData[index])))
-      setSelectIndexArray([])
-    }
-    setDialogOpen(false)
-  }
+  // 将单选和批量选择统一转换为 Track，供共享弹窗和队列追加逻辑使用。
+  const selectedItem = typeof selectIndex === 'number' ? listData[selectIndex] : undefined
+  const selectedTracks = selectedItem
+    ? [fileNodeToTrack(selectedItem)]
+    : selectIndexArray
+      .map(index => listData[index])
+      .filter((item): item is FileNode | Track => Boolean(item) && (isAudio(item.name) || isVideo(item.name)))
+      .map(fileNodeToTrack)
 
   // 添加到播放队列
   const handleClickAddToPlayQueue = () => {
-    if (typeof selectIndex === 'number') {
-      if (playQueue.length > 0) {
-        updatePlayQueue([
-          ...playQueue,
-          {
-            track: fileNodeToTrack(listData[selectIndex]),
-            index: Math.max(...playQueue.map(item => item.index)) + 1
-          }
-        ])
-      } else {
-        updatePlayQueue([{ track: fileNodeToTrack(listData[selectIndex]), index: 0 }])
-      }
-    } else if (selectIndexArray && selectIndexArray.length > 0) {
-      if (playQueue) {
-        updatePlayQueue([
-          ...playQueue,
-          ...selectIndexArray
-            .filter(index => isAudio(listData[index].name) || isVideo(listData[index].name))
-            .map((index, _index) => ({ track: fileNodeToTrack(listData[index]), index: Math.max(...playQueue.map(item => item.index)) + _index + 1 }))
-        ])
-      } else {
-        updatePlayQueue(
-          selectIndexArray
-            .filter(index => isAudio(listData[index].name) || isVideo(listData[index].name))
-            .map((index, _index) => ({ track: fileNodeToTrack(listData[index]), index: _index }))
-        )
-      }
-    }
+    updatePlayQueue(appendTracksToPlayQueue(playQueue, selectedTracks))
+    setMenuOpen(false)
+    setSelectIndex(null)
+    setSelectIndexArray([])
+  }
+
+  // 插入到当前曲目之后，使其成为实际播放顺序中的下一首。
+  const handleClickPlayNext = () => {
+    updatePlayQueue(insertTracksNextInPlayQueue(playQueue, currentIndex, selectedTracks))
     setMenuOpen(false)
     setSelectIndex(null)
     setSelectIndexArray([])
@@ -147,6 +110,12 @@ const CommonMenu = (
         }}>
           <ListItemText primary={t`Add to playlist`} />
         </MenuItem>
+        {
+          (listType !== 'playQueue') &&
+          <MenuItem onClick={handleClickPlayNext}>
+            <ListItemText primary={t`Play next`} />
+          </MenuItem>
+        }
         {
           (listType !== 'playQueue') &&
           <MenuItem onClick={handleClickAddToPlayQueue}>
@@ -195,7 +164,7 @@ const CommonMenu = (
         {
           <MenuItem onClick={() => {
             setSelectIndex(null)
-            setSelectIndexArray(Array.from({ length: listData.length }, (v, i) => i))
+            setSelectIndexArray(Array.from({ length: listData.length }, (_, i) => i))
             handleCloseMenu()
           }}>
             <ListItemText primary={t`Select all`} />
@@ -214,46 +183,15 @@ const CommonMenu = (
         }
       </Menu>
 
-      <Dialog
+      <AddToPlaylistDialog
         open={dialogOpen}
+        tracks={selectedTracks}
         onClose={() => setDialogOpen(false)}
-        fullWidth
-        maxWidth='xs'
-      >
-        <DialogTitle>{t`Add to playlist`}</DialogTitle>
-        <List>
-          {playlists?.map((item, index) =>
-            <ListItem
-              disablePadding
-              key={index}
-            >
-              <ListItemButton
-                sx={{ pl: 3 }}
-                onClick={() => addToPlaylist(item.id)}
-              >
-                <ListItemIcon>
-                  <ListRoundedIcon />
-                </ListItemIcon>
-                <ListItemText primary={item.name} />
-              </ListItemButton>
-            </ListItem>
-          )}
-          <ListItem disablePadding>
-            <ListItemButton
-              sx={{ pl: 3 }}
-              onClick={addNewPlaylist}
-            >
-              <ListItemIcon>
-                <PlaylistAddRoundedIcon />
-              </ListItemIcon>
-              <ListItemText primary={t`Add playlist`} />
-            </ListItemButton>
-          </ListItem>
-        </List>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>{t`Cancel`}</Button>
-        </DialogActions>
-      </Dialog>
+        onAdded={() => {
+          setSelectIndex(null)
+          setSelectIndexArray([])
+        }}
+      />
     </>
 
   )

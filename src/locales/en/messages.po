@@ -13,8 +13,9 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. placeholder {0}: songItems.length
 #. placeholder {0}: songs.length
-#: src/pages/Library/AlbumDetail.tsx:165
+#: src/pages/Library/AlbumDetail.tsx:177
 #: src/pages/Library/FolderDetail.tsx:90
 msgid "{0} songs"
 msgstr "{0} songs"
@@ -31,18 +32,20 @@ msgstr "Account"
 msgid "Add account"
 msgstr "Add account"
 
-#: src/components/CommonList/CommonMenu.tsx:249
+#: src/components/CommonList/AddToPlaylistDialog.tsx:68
 #: src/pages/Player/PlayerMenu.tsx:383
 #: src/pages/SideBar/Playlists.tsx:53
 msgid "Add playlist"
 msgstr "Add playlist"
 
-#: src/components/CommonList/CommonMenu.tsx:153
+#: src/components/CommonList/CommonMenu.tsx:122
+#: src/components/CommonList/LibrarySongMenu.tsx:120
 msgid "Add to play queue"
 msgstr "Add to play queue"
 
-#: src/components/CommonList/CommonMenu.tsx:148
-#: src/components/CommonList/CommonMenu.tsx:223
+#: src/components/CommonList/AddToPlaylistDialog.tsx:51
+#: src/components/CommonList/CommonMenu.tsx:111
+#: src/components/CommonList/LibrarySongMenu.tsx:114
 #: src/pages/Player/PlayerMenu.tsx:259
 #: src/pages/Player/PlayerMenu.tsx:357
 msgid "Add to playlist"
@@ -68,7 +71,7 @@ msgstr "Auto"
 msgid "Build time"
 msgstr "Build time"
 
-#: src/components/CommonList/CommonMenu.tsx:254
+#: src/components/CommonList/AddToPlaylistDialog.tsx:73
 #: src/components/Dialog/SetLibraryFolderDialog.tsx:164
 #: src/pages/Player/PlayerMenu.tsx:388
 #: src/pages/Playlist/Playlist.tsx:225
@@ -77,7 +80,7 @@ msgstr "Build time"
 msgid "Cancel"
 msgstr "Cancel"
 
-#: src/components/CommonList/CommonMenu.tsx:212
+#: src/components/CommonList/CommonMenu.tsx:181
 msgid "Cancel select"
 msgstr "Cancel select"
 
@@ -85,7 +88,7 @@ msgstr "Cancel select"
 msgid "Classic"
 msgstr "Classic"
 
-#: src/pages/Search.tsx:265
+#: src/pages/Search.tsx:270
 #: src/pages/Settings/Settings.tsx:148
 msgid "Clear"
 msgstr "Clear"
@@ -216,6 +219,7 @@ msgstr "Modern"
 
 #: src/components/CommonList/CommonListItem.tsx:42
 #: src/components/CommonList/CommonListItemCard.tsx:101
+#: src/components/CommonList/LibrarySongMenu.tsx:35
 #: src/pages/Playlist/Playlist.tsx:165
 msgid "More"
 msgstr "More"
@@ -228,7 +232,7 @@ msgstr "Multicolumn list"
 msgid "Name"
 msgstr "Name"
 
-#: src/components/CommonList/CommonMenu.tsx:70
+#: src/components/CommonList/AddToPlaylistDialog.tsx:38
 #: src/pages/Player/PlayerMenu.tsx:132
 #: src/pages/SideBar/Playlists.tsx:20
 msgid "New playlist"
@@ -244,7 +248,8 @@ msgstr "No lyrics"
 msgid "OK"
 msgstr "OK"
 
-#: src/components/CommonList/CommonMenu.tsx:160
+#: src/components/CommonList/CommonMenu.tsx:129
+#: src/components/CommonList/LibrarySongMenu.tsx:123
 #: src/pages/Player/PlayerMenu.tsx:239
 msgid "Open in folder"
 msgstr "Open in folder"
@@ -256,6 +261,11 @@ msgstr "Open source dependencies"
 #: src/components/CommonList/CommonList.tsx:375
 msgid "Play all"
 msgstr "Play all"
+
+#: src/components/CommonList/CommonMenu.tsx:116
+#: src/components/CommonList/LibrarySongMenu.tsx:117
+msgid "Play next"
+msgstr "Play next"
 
 #: src/pages/Player/Audio/Modern.tsx:170
 #: src/pages/Player/PlayerControl.tsx:307
@@ -277,7 +287,7 @@ msgstr "Please use Microsoft account authorization to log in"
 msgid "Re-fetch metadata"
 msgstr "Re-fetch metadata"
 
-#: src/components/CommonList/CommonMenu.tsx:178
+#: src/components/CommonList/CommonMenu.tsx:147
 msgid "Remove"
 msgstr "Remove"
 
@@ -286,14 +296,14 @@ msgstr "Remove"
 msgid "Rename"
 msgstr "Rename"
 
-#: src/pages/Search.tsx:203
-#: src/pages/Search.tsx:228
-#: src/pages/Search.tsx:230
-#: src/pages/Search.tsx:252
+#: src/pages/Search.tsx:208
+#: src/pages/Search.tsx:233
+#: src/pages/Search.tsx:235
+#: src/pages/Search.tsx:257
 msgid "Search"
 msgstr "Search"
 
-#: src/components/CommonList/CommonMenu.tsx:191
+#: src/components/CommonList/CommonMenu.tsx:160
 #: src/pages/Settings/Settings.tsx:132
 msgid "Select"
 msgstr "Select"
@@ -302,7 +312,7 @@ msgstr "Select"
 msgid "Select account"
 msgstr "Select account"
 
-#: src/components/CommonList/CommonMenu.tsx:201
+#: src/components/CommonList/CommonMenu.tsx:170
 msgid "Select all"
 msgstr "Select all"
 

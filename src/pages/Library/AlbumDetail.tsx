@@ -10,14 +10,20 @@ import Loading from '../Loading'
 import { useLingui } from '@lingui/react/macro'
 import useUiStore from '@/store/useUiStore'
 import useCreateImageUrl from '@/hooks/useCreateImageUrl'
-import { CSSProperties, useMemo } from 'react'
+import { CSSProperties, useMemo, useState } from 'react'
 import { AutoSizer } from 'react-virtualized'
 import { FixedSizeList } from 'react-window'
 import { MetaData } from '@/types/metaData'
+import { FileNode } from '@/types/file'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
 import shufflePlayQueue from '@/utils/shufflePlayQueue'
 import { fileNodeToTrack } from '@/utils/track'
+import LibrarySongMenu, {
+  LibrarySongMenuButton,
+  LibrarySongMenuPosition,
+  LibrarySongMenuTarget,
+} from '@/components/CommonList/LibrarySongMenu'
 
 const SEPARATOR = '\u001f'
 
@@ -38,6 +44,7 @@ const AlbumDetail = () => {
   const updatePlayQueue = usePlayQueueStore.use.updatePlayQueue()
   const updateCurrentIndex = usePlayQueueStore.use.updateCurrentIndex()
   const updateAutoPlay = usePlayerStore.use.updateAutoPlay()
+  const [menuTarget, setMenuTarget] = useState<LibrarySongMenuTarget | null>(null)
 
   const fileNodes = useLiveQuery(async () => await db?.nodes.where('type').equals('audio').toArray(), [db])
   const fileNodeIds = useMemo(() => fileNodes?.map(node => node.id) ?? [], [fileNodes])
@@ -89,49 +96,54 @@ const AlbumDetail = () => {
     []
   )
 
-  const albumInfo = useMemo(() => songs?.[0], [songs])
+  const songItems = useMemo(() => {
+    const nodeMap = new Map(fileNodes?.map(node => [node.id, node]))
+
+    // 菜单需要 FileNode；在这里按专辑曲序与元数据配对，播放和菜单共用同一索引。
+    return songs
+      ?.map(song => {
+        const node = nodeMap.get(song.id)
+        return node ? { node, song } : undefined
+      })
+      .filter((item): item is { node: FileNode; song: MetaData } => item !== undefined)
+      ?? []
+  }, [fileNodes, songs])
+
+  const albumInfo = useMemo(() => songItems[0]?.song, [songItems])
   const coverUrl = useCreateImageUrl(db, albumInfo)
 
   const totalDiscs = useMemo(() => {
-    if (!songs || songs.length === 0) return 1
-    return Math.max(...songs.map(s => s.common.disk?.no ?? 1))
-  }, [songs])
+    if (songItems.length === 0) return 1
+    return Math.max(...songItems.map(item => item.song.common.disk?.no ?? 1))
+  }, [songItems])
 
   const isMultiDisc = totalDiscs > 1
 
   const open = (index: number) => {
-    if (songs) {
-      const list = songs
-        .map((item, _index) => {
-          const fileNode = fileNodes?.find(node => node.id === item.id)
-          if (!fileNode) return undefined
-          return { track: fileNodeToTrack(fileNode), index: _index }
-        })
-        .filter((item) => item !== undefined)
+    if (songItems.length > 0) {
+      const list = songItems.map((item, itemIndex) => ({ track: fileNodeToTrack(item.node), index: itemIndex }))
       if (shuffle) {
         updateShuffle(false)
       }
-      updatePlayQueue(list ?? [])
+      updatePlayQueue(list)
       updateCurrentIndex(index)
       updateAutoPlay(true)
     }
   }
 
   const playAll = () => {
-    if (songs && songs.length > 0) {
+    if (songItems.length > 0) {
       open(0)
     }
   }
 
   const shuffleAll = () => {
-    if (songs) {
-      const list = fileNodes
-        ?.filter(node => songs.map(song => song.id).includes(node.id))
-        .map((item, index) => ({ track: fileNodeToTrack(item), index }))
+    if (songItems.length > 0) {
+      const list = songItems.map((item, index) => ({ track: fileNodeToTrack(item.node), index }))
       if (!shuffle) {
         updateShuffle(true)
       }
-      const shuffledList = shufflePlayQueue(list ?? [])
+      const shuffledList = shufflePlayQueue(list)
       updatePlayQueue(shuffledList)
       updateCurrentIndex(shuffledList[0]?.index ?? 0)
       updateAutoPlay(true)
@@ -162,7 +174,7 @@ const AlbumDetail = () => {
         <Grid sx={{ pl: 2, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <Typography variant="body1" color="text.secondary">{albumartists.join('; ')}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {t`${songs.length} songs`}
+            {t`${songItems.length} songs`}
           </Typography>
           <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
             <IconButton onClick={playAll}><PlayArrowIcon /></IconButton>
@@ -176,44 +188,43 @@ const AlbumDetail = () => {
             <FixedSizeList
               height={height}
               width={width}
-              itemCount={songs.length}
+              itemCount={songItems.length}
               itemSize={72}
             >
               {({ index, style }) => (
                 <SongRow
-                  key={songs[index]?.id ?? index}
-                  index={index}
+                  key={songItems[index]?.node.id ?? index}
                   style={style}
-                  songs={songs}
+                  song={songItems[index].song}
                   isMultiDisc={isMultiDisc}
                   onPlay={() => open(index)}
+                  onOpenMenu={anchorPosition => setMenuTarget({ anchorPosition, fileNode: songItems[index].node })}
                 />
               )}
             </FixedSizeList>
           )}
         </AutoSizer>
       </Box>
+      <LibrarySongMenu target={menuTarget} onClose={() => setMenuTarget(null)} />
     </Box>
   )
 }
 
 const SongRow = (
   {
-    index,
     style,
-    songs,
+    song,
     isMultiDisc,
     onPlay,
+    onOpenMenu,
   }: {
-    index: number,
     style: CSSProperties,
-    songs: MetaData[],
+    song: MetaData,
     isMultiDisc: boolean,
     onPlay: () => void,
+    onOpenMenu: (anchorPosition: LibrarySongMenuPosition) => void,
   }
 ) => {
-  const song = songs[index]
-
   const trackDisplay = useMemo(() => {
     const track = song.common.track.no ?? 0
     if (!isMultiDisc) {
@@ -227,7 +238,11 @@ const SongRow = (
   }, [song, isMultiDisc])
 
   return (
-    <ListItem style={style} disablePadding>
+    <ListItem
+      style={style}
+      disablePadding
+      secondaryAction={<LibrarySongMenuButton onClick={onOpenMenu} />}
+    >
       <ListItemButton onClick={onPlay}>
         <ListItemIcon sx={{ minWidth: 40, justifyContent: 'center' }}>
           <Typography variant="body2" color="text.secondary">
