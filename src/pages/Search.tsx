@@ -1,73 +1,181 @@
-import { Box, ButtonBase, Dialog, DialogContent, IconButton, InputAdornment, InputBase, LinearProgress, useTheme } from '@mui/material'
-import { useState } from 'react'
+import {
+  Avatar,
+  Box,
+  ButtonBase,
+  Dialog,
+  DialogContent,
+  IconButton,
+  InputAdornment,
+  InputBase,
+  LinearProgress,
+  ListItem,
+  ListItemAvatar,
+  ListItemButton,
+  ListItemText,
+  useTheme,
+} from '@mui/material'
+import { CSSProperties, useMemo, useState } from 'react'
+import AlbumRoundedIcon from '@mui/icons-material/AlbumRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import MusicNoteRoundedIcon from '@mui/icons-material/MusicNoteRounded'
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import useGraph from '@/hooks/graph/useGraph'
 import useUser from '@/hooks/graph/useUser'
 import useSWR from 'swr'
 import useDebounce from '@/hooks/useDebounce'
 import CommonList from '@/components/CommonList/CommonList'
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { animated, useSpring } from '@react-spring/web'
 import useStyles from '@/hooks/ui/useStyles'
 import { useLingui } from '@lingui/react/macro'
 import { useMsal } from '@azure/msal-react'
 import { remoteItemToFileNode } from '@/utils/remote'
 import { isAudio, isVideo } from '@/utils/checkFileType'
+import useDb from '@/hooks/useDb'
+import { useLiveQuery } from 'dexie-react-hooks'
+import {
+  ALBUM_ARTIST_SEPARATOR,
+  createLibrarySearchQueue,
+  getLibrarySearchContext,
+  isLocalLibrarySearch,
+  LibrarySearchResult,
+  NO_ALBUM_ARTIST,
+  searchLibrary,
+} from '@/utils/librarySearch'
+import { FileNode } from '@/types/file'
+import { AutoSizer } from 'react-virtualized'
+import { FixedSizeList } from 'react-window'
+import useCreateImageUrl from '@/hooks/useCreateImageUrl'
+import { LibraryDB } from '@/db'
+import useUiStore from '@/store/useUiStore'
+import usePlayQueueStore from '@/store/usePlayQueueStore'
+import usePlayerStore from '@/store/usePlayerStore'
+
+type SearchResult =
+  | { kind: 'file', id: string, node: FileNode }
+  | LibrarySearchResult
 
 const Search = ({ type = 'icon' }: { type?: 'icon' | 'bar' }) => {
   const { t } = useLingui()
-
   const theme = useTheme()
   const styles = useStyles(theme)
-
-  const [searchQuery, setSearchQuery] = useState('')
-  const debouncedSearchQuery = useDebounce(searchQuery, searchQuery.length > 0 ? 1000 : 0)
-
+  const location = useLocation()
   const navigate = useNavigate()
 
+  const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
 
-  const handleCloseSearh = () => {
+  const searchContext = useMemo(
+    () => getLibrarySearchContext(location.pathname),
+    [location.pathname],
+  )
+  const isFileSearch = searchContext.mode === 'files'
+  const debouncedSearchQuery = useDebounce(
+    searchQuery,
+    isFileSearch && searchQuery.length > 0 ? 1000 : 0,
+  )
+
+  const { instance } = useMsal()
+  const { account } = useUser()
+  const db = useDb(account)
+  const { getSearchData } = useGraph(instance, account)
+
+  const shuffle = useUiStore.use.shuffle()
+  const updateShuffle = useUiStore.use.updateShuffle()
+  const updatePlayQueue = usePlayQueueStore.use.updatePlayQueue()
+  const updateCurrentIndex = usePlayQueueStore.use.updateCurrentIndex()
+  const updateAutoPlay = usePlayerStore.use.updateAutoPlay()
+
+  const handleCloseSearch = () => {
     setSearchOpen(false)
     setSearchQuery('')
   }
 
-  const { instance } = useMsal()
-  const { account } = useUser()
-
-  const { getSearchData } = useGraph(instance, account)
-
-  const searchFetcher = async (searchQuery: string) => {
+  const searchFetcher = async (query: string) => {
     if (!account) return []
-    const { value } = await getSearchData(searchQuery)
+    const { value } = await getSearchData(query)
     return value.map(item => remoteItemToFileNode(item, { includeVisuals: true }))
   }
 
   const { data: searchData, isLoading: searchIsLoading } = useSWR(
-    (debouncedSearchQuery.length > 0) && account ? `${account.username}/${debouncedSearchQuery}` : null,
+    isFileSearch && debouncedSearchQuery.length > 0 && account
+      ? `${account.username}/${debouncedSearchQuery}`
+      : null,
     () => searchFetcher(debouncedSearchQuery),
   )
 
-  const filteredData = [
-    ...searchData?.filter(searchItem =>
-      ((isAudio(searchItem.name) || isVideo(searchItem.name) || searchItem.folder === 1))
-    )
-    || []
-  ]
+  const fileResults = useMemo<SearchResult[]>(() => (
+    searchData
+      ?.filter(item => isAudio(item.name) || isVideo(item.name) || item.folder === 1)
+      .map(node => ({ kind: 'file', id: node.id, node }))
+    ?? []
+  ), [searchData])
 
-  const open = async (index: number) => {
-    const currentFile = filteredData[index]
-    if (currentFile.folder === 1) {
-      handleCloseSearh()
-      navigate(`/files/${currentFile.path.join('/')}`)
-    } else {
-      handleCloseSearh()
-      navigate(`/files/${currentFile.path.slice(0, -1).join('/')}`)
+  const localSearchActive = searchOpen
+    && searchQuery.trim().length > 0
+    && isLocalLibrarySearch(searchContext)
+
+  const libraryData = useLiveQuery(async () => {
+    if (!db || !localSearchActive) return null
+
+    const nodes = await db.nodes.where('type').equals('audio').toArray()
+    const nodeIds = nodes.map(node => node.id)
+    const metadata = nodeIds.length > 0
+      ? await db.metadata.where('id').anyOf(nodeIds).toArray()
+      : []
+
+    return { nodes, metadata }
+  }, [db, localSearchActive])
+
+  const localResults = useMemo<LibrarySearchResult[]>(() => {
+    if (!isLocalLibrarySearch(searchContext) || !libraryData) return []
+    return searchLibrary(searchContext, libraryData.nodes, libraryData.metadata, searchQuery)
+  }, [libraryData, searchContext, searchQuery])
+
+  const results: SearchResult[] = isFileSearch ? fileResults : localResults
+
+  const open = (index: number) => {
+    const current = results[index]
+    if (!current) return
+
+    if (current.kind === 'file') {
+      handleCloseSearch()
+      if (current.node.folder === 1) {
+        navigate(`/files/${current.node.path.join('/')}`)
+      } else {
+        navigate(`/files/${current.node.path.slice(0, -1).join('/')}`)
+      }
+      return
     }
+
+    if (current.kind === 'album') {
+      handleCloseSearch()
+      const artistsParam = current.albumArtists.join(ALBUM_ARTIST_SEPARATOR) || NO_ALBUM_ARTIST
+      navigate(`/library/albums/${encodeURIComponent(artistsParam)}/${encodeURIComponent(current.album)}`)
+      return
+    }
+
+    if (current.kind === 'artist') {
+      handleCloseSearch()
+      navigate(`/library/artists/${encodeURIComponent(current.artist)}`)
+      return
+    }
+
+    const songResults = results.filter(
+      (result): result is LibrarySearchResult & { kind: 'song' } => result.kind === 'song',
+    )
+    const currentSongIndex = songResults.findIndex(song => song.id === current.id)
+    if (currentSongIndex < 0) return
+
+    if (shuffle) updateShuffle(false)
+    updatePlayQueue(createLibrarySearchQueue(songResults))
+    updateCurrentIndex(currentSongIndex)
+    updateAutoPlay(true)
+    handleCloseSearch()
   }
 
-  const isShow = filteredData && filteredData.length > 0
+  const isShow = results.length > 0
 
   const [{ height }] = useSpring(
     () => ({
@@ -81,16 +189,16 @@ const Search = ({ type = 'icon' }: { type?: 'icon' | 'bar' }) => {
         mass: 1,
         tension: 190,
         friction: 20,
-      }
+      },
     }),
-    [isShow]
+    [isShow],
   )
 
   return (
     <>
       {
-        type === 'icon' &&
-        <IconButton
+        type === 'icon'
+        && <IconButton
           onClick={() => setSearchOpen(true)}
           aria-label={t`Search`}
           sx={{
@@ -106,8 +214,8 @@ const Search = ({ type = 'icon' }: { type?: 'icon' | 'bar' }) => {
         </IconButton>
       }
       {
-        type === 'bar' &&
-        <ButtonBase
+        type === 'bar'
+        && <ButtonBase
           sx={{
             background: `${theme.palette.background.paper}99`,
             border: `1px solid ${theme.palette.divider}`,
@@ -125,12 +233,12 @@ const Search = ({ type = 'icon' }: { type?: 'icon' | 'bar' }) => {
 
       <Dialog
         open={searchOpen}
-        onClose={handleCloseSearh}
+        onClose={handleCloseSearch}
         maxWidth='xs'
         fullWidth
         disableRestoreFocus
         sx={{
-          ...styles.scrollbar
+          ...styles.scrollbar,
         }}
       >
         <Box
@@ -144,17 +252,17 @@ const Search = ({ type = 'icon' }: { type?: 'icon' | 'bar' }) => {
             placeholder={t`Search`}
             sx={{ width: '100%', fontSize: '1rem' }}
             value={searchQuery}
-            onChange={(ev) => setSearchQuery(ev.target.value)}
+            onChange={event => setSearchQuery(event.target.value)}
             startAdornment={
               <InputAdornment position='start'>
                 <SearchRoundedIcon />
               </InputAdornment>
             }
             endAdornment={
-              searchQuery.length > 0 &&
-              <InputAdornment position="end">
+              searchQuery.length > 0
+              && <InputAdornment position='end'>
                 <IconButton
-                  aria-label="toggle password visibility"
+                  aria-label={t`Clear`}
                   onClick={() => setSearchQuery('')}
                 >
                   <CloseRoundedIcon fontSize='small' />
@@ -162,17 +270,111 @@ const Search = ({ type = 'icon' }: { type?: 'icon' | 'bar' }) => {
               </InputAdornment>
             }
           />
-          {searchIsLoading && <LinearProgress sx={{ borderRadius: '0.5rem', height: '2px' }} />}
+          {isFileSearch && searchIsLoading && <LinearProgress sx={{ borderRadius: '0.5rem', height: '2px' }} />}
         </Box>
 
-        <animated.div style={{ height: height, overflow: 'hidden' }}>
+        <animated.div style={{ height, overflow: 'hidden' }}>
           <DialogContent sx={{ padding: '0.125rem', height: '100%', borderTop: `1px solid ${theme.palette.divider}` }}>
-            <CommonList listData={filteredData} listType='files' disableFAB func={{ open }} />
+            {
+              isFileSearch
+                ? <CommonList
+                  listData={fileResults
+                    .filter((result): result is SearchResult & { kind: 'file' } => result.kind === 'file')
+                    .map(result => result.node)}
+                  listType='files'
+                  disableFAB
+                  func={{ open: async index => open(index) }}
+                />
+                : db && <LibrarySearchList db={db} results={localResults} onOpen={open} />
+            }
           </DialogContent>
         </animated.div>
-
       </Dialog>
     </>
+  )
+}
+
+const LibrarySearchList = ({
+  db,
+  results,
+  onOpen,
+}: {
+  db: LibraryDB
+  results: LibrarySearchResult[]
+  onOpen: (index: number) => void
+}) => (
+  <Box sx={{ width: '100%', height: '100%' }}>
+    <AutoSizer>
+      {({ height, width }) => (
+        <FixedSizeList
+          height={height}
+          width={width}
+          itemCount={results.length}
+          itemSize={72}
+          overscanCount={10}
+        >
+          {({ index, style }) => (
+            <LibrarySearchRow
+              key={results[index].id}
+              db={db}
+              result={results[index]}
+              style={style}
+              onOpen={() => onOpen(index)}
+            />
+          )}
+        </FixedSizeList>
+      )}
+    </AutoSizer>
+  </Box>
+)
+
+const LibrarySearchRow = ({
+  db,
+  result,
+  style,
+  onOpen,
+}: {
+  db: LibraryDB
+  result: LibrarySearchResult
+  style: CSSProperties
+  onOpen: () => void
+}) => {
+  const metadata = result.kind === 'artist' ? undefined : result.metadata
+  const coverUrl = useCreateImageUrl(db, metadata)
+
+  const primary = result.kind === 'album'
+    ? result.album
+    : result.kind === 'artist'
+      ? result.artist
+      : result.metadata.common.title ?? result.node.name
+
+  const secondary = result.kind === 'album'
+    ? result.albumArtists.join('; ')
+    : result.kind === 'song'
+      ? [
+        result.metadata.common.artists?.join('; ') ?? result.metadata.common.artist,
+        result.metadata.common.album,
+      ].filter(Boolean).join(' • ')
+      : undefined
+
+  return (
+    <ListItem style={style} disablePadding>
+      <ListItemButton onClick={onOpen}>
+        <ListItemAvatar>
+          <Avatar
+            variant='square'
+            alt={primary}
+            src={result.kind === 'artist' ? undefined : coverUrl}
+            slotProps={{ img: { loading: 'lazy' } }}
+          >
+            {result.kind === 'album' && <AlbumRoundedIcon />}
+            {result.kind === 'artist' && <PersonRoundedIcon />}
+            {result.kind === 'song' && <MusicNoteRoundedIcon />}
+          </Avatar>
+        </ListItemAvatar>
+        <ListItemText primary={primary} secondary={secondary} />
+      </ListItemButton>
+    </ListItem>
   )
 }
 

@@ -85,6 +85,7 @@ msgstr "取消选择"
 msgid "Classic"
 msgstr "经典"
 
+#: src/pages/Search.tsx:265
 #: src/pages/Settings/Settings.tsx:148
 msgid "Clear"
 msgstr "清除"
@@ -285,10 +286,10 @@ msgstr "移除"
 msgid "Rename"
 msgstr "重命名"
 
-#: src/pages/Search.tsx:95
-#: src/pages/Search.tsx:120
-#: src/pages/Search.tsx:122
-#: src/pages/Search.tsx:144
+#: src/pages/Search.tsx:203
+#: src/pages/Search.tsx:228
+#: src/pages/Search.tsx:230
+#: src/pages/Search.tsx:252
 msgid "Search"
 msgstr "搜索"
 

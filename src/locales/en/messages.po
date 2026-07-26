@@ -85,6 +85,7 @@ msgstr "Cancel select"
 msgid "Classic"
 msgstr "Classic"
 
+#: src/pages/Search.tsx:265
 #: src/pages/Settings/Settings.tsx:148
 msgid "Clear"
 msgstr "Clear"
@@ -285,10 +286,10 @@ msgstr "Remove"
 msgid "Rename"
 msgstr "Rename"
 
-#: src/pages/Search.tsx:95
-#: src/pages/Search.tsx:120
-#: src/pages/Search.tsx:122
-#: src/pages/Search.tsx:144
+#: src/pages/Search.tsx:203
+#: src/pages/Search.tsx:228
+#: src/pages/Search.tsx:230
+#: src/pages/Search.tsx:252
 msgid "Search"
 msgstr "Search"
 
