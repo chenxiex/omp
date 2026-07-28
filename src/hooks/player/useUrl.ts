@@ -1,5 +1,7 @@
 import usePlayQueueStore from '@/store/usePlayQueueStore'
+import useUiStore from '@/store/useUiStore'
 import type { Track } from '@/types/file'
+import { resolveMediaTransport } from '@/utils/mediaProxy'
 import { remoteItemToTrack } from '@/utils/track'
 import {
   getTrackSourceKey,
@@ -18,10 +20,15 @@ const useUrl = () => {
   const getFileDataRef = useRef(getFileData)
   getFileDataRef.current = getFileData
 
+  const mediaProxyEnabled = useUiStore.use.mediaProxyEnabled()
+  const mediaProxyUrl = useUiStore.use.mediaProxyUrl()
+  const mediaProxyAccessKey = useUiStore.use.mediaProxyAccessKey()
+  const proxyConfigured = Boolean(mediaProxyEnabled && mediaProxyUrl && mediaProxyAccessKey)
+
   const accountKey = account?.homeAccountId ?? account?.username ?? ''
   // 当前曲和 standby 共用解析器，避免同一首歌重复请求 Graph
   const sourceCache = useMemo(
-    () => new TrackSourceCache(async (track, signal) => {
+    () => new TrackSourceCache(async (track, signal, options) => {
       if (!accountKey) throw new Error('Cannot resolve a track without an account.')
 
       const remoteItem = await getFileDataRef.current(
@@ -34,26 +41,42 @@ const useUrl = () => {
       const url = remoteItem?.['@microsoft.graph.downloadUrl']
       if (!url) throw new Error('No download URL returned for track.')
 
-      return {
+      const { proxyFailure, ...transportSource } = await resolveMediaTransport(
         url,
+        proxyConfigured && !options?.bypassProxy
+          ? {
+            url: mediaProxyUrl,
+            accessKey: mediaProxyAccessKey,
+          }
+          : undefined,
+        signal,
+      )
+      if (proxyFailure) {
+        console.warn('Failed to create a signed media URL; using a direct source.', proxyFailure)
+      }
+
+      return {
+        ...transportSource,
         remoteTrack: remoteItemToTrack(remoteItem),
         thumbnail: remoteItem.thumbnails?.[0]?.large,
       }
     }),
-    [accountKey],
+    [accountKey, mediaProxyAccessKey, mediaProxyUrl, proxyConfigured],
   )
 
   useEffect(() => () => sourceCache.clear(), [sourceCache])
 
   const resolveSource = useCallback(async (
     track: Track,
-    options?: { forceRefresh?: boolean },
+    options?: { forceRefresh?: boolean, bypassProxy?: boolean },
   ) => {
     if (!accountKey) throw new Error('Cannot resolve a track without an account.')
 
     if (options?.forceRefresh) sourceCache.invalidate(accountKey, track)
 
-    const source = await sourceCache.resolve(accountKey, track)
+    const source = await sourceCache.resolve(accountKey, track, {
+      bypassProxy: options?.bypassProxy,
+    })
     const queueState = usePlayQueueStore.getState()
     const hasUpdatedTrack = queueState.playQueue.some(item => (
       getTrackSourceKey(item.track) === source.trackKey

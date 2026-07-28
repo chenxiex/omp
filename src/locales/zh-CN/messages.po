@@ -20,15 +20,15 @@ msgstr ""
 msgid "{0} songs"
 msgstr "{0} 首歌曲"
 
-#: src/pages/Settings/Settings.tsx:191
+#: src/pages/Settings/Settings.tsx:287
 msgid "About"
 msgstr "关于"
 
-#: src/pages/Settings/Settings.tsx:109
+#: src/pages/Settings/Settings.tsx:142
 msgid "Account"
 msgstr "账户"
 
-#: src/pages/Settings/Settings.tsx:255
+#: src/pages/Settings/Settings.tsx:351
 msgid "Add account"
 msgstr "添加账户"
 
@@ -63,11 +63,11 @@ msgstr "艺术家"
 msgid "Ascending"
 msgstr "正序"
 
-#: src/pages/Settings/Settings.tsx:167
+#: src/pages/Settings/Settings.tsx:263
 msgid "Auto"
 msgstr "自动"
 
-#: src/pages/Settings/Settings.tsx:206
+#: src/pages/Settings/Settings.tsx:302
 msgid "Build time"
 msgstr "编译日期"
 
@@ -76,7 +76,7 @@ msgstr "编译日期"
 #: src/pages/Player/PlayerMenu.tsx:388
 #: src/pages/Playlist/Playlist.tsx:225
 #: src/pages/Playlist/Playlist.tsx:248
-#: src/pages/Settings/Settings.tsx:260
+#: src/pages/Settings/Settings.tsx:356
 msgid "Cancel"
 msgstr "取消"
 
@@ -89,7 +89,7 @@ msgid "Classic"
 msgstr "经典"
 
 #: src/pages/Search.tsx:270
-#: src/pages/Settings/Settings.tsx:148
+#: src/pages/Settings/Settings.tsx:181
 msgid "Clear"
 msgstr "清除"
 
@@ -99,23 +99,31 @@ msgstr "清除"
 msgid "Close"
 msgstr "关闭"
 
-#: src/pages/Settings/Settings.tsx:174
+#: src/pages/Settings/Settings.tsx:270
 msgid "Color mode"
 msgstr "颜色模式"
+
+#: src/pages/Settings/Settings.tsx:244
+msgid "Connection and key verified"
+msgstr "连接和密钥验证成功"
+
+#: src/pages/Settings/Settings.tsx:247
+msgid "Connection or key verification failed"
+msgstr "连接或密钥验证失败"
 
 #: src/pages/NavBar.tsx:126
 msgid "Currently using a development version, please be careful with your data!"
 msgstr "当前正在使用开发版本，请注意数据安全!"
 
-#: src/pages/Settings/Settings.tsx:157
+#: src/pages/Settings/Settings.tsx:253
 msgid "Customize"
 msgstr "定制"
 
-#: src/pages/Settings/Settings.tsx:169
+#: src/pages/Settings/Settings.tsx:265
 msgid "Dark"
 msgstr "深色"
 
-#: src/pages/Settings/Settings.tsx:140
+#: src/pages/Settings/Settings.tsx:173
 msgid "Data"
 msgstr "数据"
 
@@ -126,6 +134,14 @@ msgstr "删除"
 #: src/pages/Files/FilterMenu.tsx:108
 msgid "Descending"
 msgstr "倒序"
+
+#: src/pages/Settings/Settings.tsx:208
+msgid "Disabled by default"
+msgstr "默认关闭"
+
+#: src/pages/Settings/Settings.tsx:208
+msgid "Enable media proxy"
+msgstr "启用媒体代理"
 
 #: src/pages/Playlist/Playlist.tsx:221
 msgid "Enter new title"
@@ -172,12 +188,12 @@ msgstr "空闲"
 msgid "Last modified"
 msgstr "最后修改"
 
-#: src/pages/Settings/Settings.tsx:131
+#: src/pages/Settings/Settings.tsx:164
 #: src/pages/SideBar/SideBar.tsx:42
 msgid "Library"
 msgstr "媒体库"
 
-#: src/pages/Settings/Settings.tsx:133
+#: src/pages/Settings/Settings.tsx:166
 msgid "Library folder"
 msgstr "媒体库文件夹"
 
@@ -185,7 +201,7 @@ msgstr "媒体库文件夹"
 msgid "Library folder not set"
 msgstr "未设置媒体库文件夹"
 
-#: src/pages/Settings/Settings.tsx:168
+#: src/pages/Settings/Settings.tsx:264
 msgid "Light"
 msgstr "浅色"
 
@@ -193,7 +209,7 @@ msgstr "浅色"
 msgid "List"
 msgstr "列表"
 
-#: src/pages/Settings/Settings.tsx:152
+#: src/pages/Settings/Settings.tsx:185
 msgid "Local metaData cache"
 msgstr "本地元数据缓存"
 
@@ -201,13 +217,17 @@ msgstr "本地元数据缓存"
 msgid "Lyrics"
 msgstr "歌词"
 
-#: src/pages/Settings/Settings.tsx:112
+#: src/pages/Settings/Settings.tsx:145
 msgid "Manage"
 msgstr "管理"
 
 #: src/pages/Files/FilterMenu.tsx:117
 msgid "Media only"
 msgstr "仅限媒体"
+
+#: src/pages/Settings/Settings.tsx:190
+msgid "Media proxy"
+msgstr "媒体代理"
 
 #: src/pages/Player/PlayerMenu.tsx:189
 msgid "Menu"
@@ -248,13 +268,17 @@ msgstr "无歌词"
 msgid "OK"
 msgstr "确定"
 
+#: src/pages/Settings/Settings.tsx:193
+msgid "Only use a Worker you control. Signed media URLs contain a reversible encoding of the short-lived single-file download URL and may appear in Worker request logs, but never contain a Microsoft Graph token or the proxy key. Use a long random proxy key. This configuration stays in this browser and is not synced to OneDrive."
+msgstr "仅使用由你控制的 Worker。签名媒体 URL 包含短期单文件下载 URL 的可逆编码，可能出现在 Worker 请求日志中，但绝不会包含 Microsoft Graph Token 或代理密钥。请使用足够长的随机代理密钥。此配置只保存在当前浏览器中，不会同步到 OneDrive。"
+
 #: src/components/CommonList/CommonMenu.tsx:129
 #: src/components/CommonList/LibrarySongMenu.tsx:123
 #: src/pages/Player/PlayerMenu.tsx:239
 msgid "Open in folder"
 msgstr "打开所在文件夹"
 
-#: src/pages/Settings/Settings.tsx:212
+#: src/pages/Settings/Settings.tsx:308
 msgid "Open source dependencies"
 msgstr "开源库"
 
@@ -279,9 +303,13 @@ msgid "Playback rate"
 msgstr "播放速度"
 
 #: src/pages/LogIn.tsx:26
-#: src/pages/Settings/Settings.tsx:121
+#: src/pages/Settings/Settings.tsx:154
 msgid "Please use Microsoft account authorization to log in"
 msgstr "请使用微软账户授权登录"
+
+#: src/pages/Settings/Settings.tsx:227
+msgid "Proxy access key"
+msgstr "代理访问密钥"
 
 #: src/pages/Player/PlayerMenu.tsx:276
 msgid "Re-fetch metadata"
@@ -304,11 +332,11 @@ msgid "Search"
 msgstr "搜索"
 
 #: src/components/CommonList/CommonMenu.tsx:160
-#: src/pages/Settings/Settings.tsx:132
+#: src/pages/Settings/Settings.tsx:165
 msgid "Select"
 msgstr "选择"
 
-#: src/pages/Settings/Settings.tsx:226
+#: src/pages/Settings/Settings.tsx:322
 msgid "Select account"
 msgstr "选择账户"
 
@@ -329,7 +357,7 @@ msgstr "设置"
 msgid "Sign in"
 msgstr "登录"
 
-#: src/pages/Settings/Settings.tsx:234
+#: src/pages/Settings/Settings.tsx:330
 msgid "Sign out"
 msgstr "注销"
 
@@ -354,14 +382,26 @@ msgstr "切换主题"
 msgid "Syncing"
 msgstr "同步中"
 
+#: src/pages/Settings/Settings.tsx:241
+msgid "Test connection and key"
+msgstr "测试连接和密钥"
+
+#: src/pages/Settings/Settings.tsx:241
+msgid "Testing…"
+msgstr "正在测试…"
+
 #: src/pages/Playlist/Playlist.tsx:245
 msgid "The playlist will be deleted"
 msgstr "播放列表将会被删除"
 
-#: src/pages/Settings/Settings.tsx:186
+#: src/pages/Settings/Settings.tsx:282
 msgid "Use album cover theme color"
 msgstr "使用专辑封面主题色"
 
-#: src/pages/Settings/Settings.tsx:200
+#: src/pages/Settings/Settings.tsx:296
 msgid "Version"
 msgstr "版本号"
+
+#: src/pages/Settings/Settings.tsx:213
+msgid "Worker HTTPS address"
+msgstr "Worker HTTPS 地址"

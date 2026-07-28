@@ -20,15 +20,15 @@ msgstr ""
 msgid "{0} songs"
 msgstr "{0} songs"
 
-#: src/pages/Settings/Settings.tsx:191
+#: src/pages/Settings/Settings.tsx:287
 msgid "About"
 msgstr "About"
 
-#: src/pages/Settings/Settings.tsx:109
+#: src/pages/Settings/Settings.tsx:142
 msgid "Account"
 msgstr "Account"
 
-#: src/pages/Settings/Settings.tsx:255
+#: src/pages/Settings/Settings.tsx:351
 msgid "Add account"
 msgstr "Add account"
 
@@ -63,11 +63,11 @@ msgstr "Artist"
 msgid "Ascending"
 msgstr "Ascending"
 
-#: src/pages/Settings/Settings.tsx:167
+#: src/pages/Settings/Settings.tsx:263
 msgid "Auto"
 msgstr "Auto"
 
-#: src/pages/Settings/Settings.tsx:206
+#: src/pages/Settings/Settings.tsx:302
 msgid "Build time"
 msgstr "Build time"
 
@@ -76,7 +76,7 @@ msgstr "Build time"
 #: src/pages/Player/PlayerMenu.tsx:388
 #: src/pages/Playlist/Playlist.tsx:225
 #: src/pages/Playlist/Playlist.tsx:248
-#: src/pages/Settings/Settings.tsx:260
+#: src/pages/Settings/Settings.tsx:356
 msgid "Cancel"
 msgstr "Cancel"
 
@@ -89,7 +89,7 @@ msgid "Classic"
 msgstr "Classic"
 
 #: src/pages/Search.tsx:270
-#: src/pages/Settings/Settings.tsx:148
+#: src/pages/Settings/Settings.tsx:181
 msgid "Clear"
 msgstr "Clear"
 
@@ -99,23 +99,31 @@ msgstr "Clear"
 msgid "Close"
 msgstr "Close"
 
-#: src/pages/Settings/Settings.tsx:174
+#: src/pages/Settings/Settings.tsx:270
 msgid "Color mode"
 msgstr "Color mode"
+
+#: src/pages/Settings/Settings.tsx:244
+msgid "Connection and key verified"
+msgstr "Connection and key verified"
+
+#: src/pages/Settings/Settings.tsx:247
+msgid "Connection or key verification failed"
+msgstr "Connection or key verification failed"
 
 #: src/pages/NavBar.tsx:126
 msgid "Currently using a development version, please be careful with your data!"
 msgstr "Currently using a development version, please be careful with your data!"
 
-#: src/pages/Settings/Settings.tsx:157
+#: src/pages/Settings/Settings.tsx:253
 msgid "Customize"
 msgstr "Customize"
 
-#: src/pages/Settings/Settings.tsx:169
+#: src/pages/Settings/Settings.tsx:265
 msgid "Dark"
 msgstr "Dark"
 
-#: src/pages/Settings/Settings.tsx:140
+#: src/pages/Settings/Settings.tsx:173
 msgid "Data"
 msgstr "Data"
 
@@ -126,6 +134,14 @@ msgstr "Delete"
 #: src/pages/Files/FilterMenu.tsx:108
 msgid "Descending"
 msgstr "Descending"
+
+#: src/pages/Settings/Settings.tsx:208
+msgid "Disabled by default"
+msgstr "Disabled by default"
+
+#: src/pages/Settings/Settings.tsx:208
+msgid "Enable media proxy"
+msgstr "Enable media proxy"
 
 #: src/pages/Playlist/Playlist.tsx:221
 msgid "Enter new title"
@@ -172,12 +188,12 @@ msgstr "Idle"
 msgid "Last modified"
 msgstr "Last modified"
 
-#: src/pages/Settings/Settings.tsx:131
+#: src/pages/Settings/Settings.tsx:164
 #: src/pages/SideBar/SideBar.tsx:42
 msgid "Library"
 msgstr "Library"
 
-#: src/pages/Settings/Settings.tsx:133
+#: src/pages/Settings/Settings.tsx:166
 msgid "Library folder"
 msgstr "Library folder"
 
@@ -185,7 +201,7 @@ msgstr "Library folder"
 msgid "Library folder not set"
 msgstr "Library folder not set"
 
-#: src/pages/Settings/Settings.tsx:168
+#: src/pages/Settings/Settings.tsx:264
 msgid "Light"
 msgstr "Light"
 
@@ -193,7 +209,7 @@ msgstr "Light"
 msgid "List"
 msgstr "List"
 
-#: src/pages/Settings/Settings.tsx:152
+#: src/pages/Settings/Settings.tsx:185
 msgid "Local metaData cache"
 msgstr "Local metaData cache"
 
@@ -201,13 +217,17 @@ msgstr "Local metaData cache"
 msgid "Lyrics"
 msgstr "Lyrics"
 
-#: src/pages/Settings/Settings.tsx:112
+#: src/pages/Settings/Settings.tsx:145
 msgid "Manage"
 msgstr "Manage"
 
 #: src/pages/Files/FilterMenu.tsx:117
 msgid "Media only"
 msgstr "Media only"
+
+#: src/pages/Settings/Settings.tsx:190
+msgid "Media proxy"
+msgstr "Media proxy"
 
 #: src/pages/Player/PlayerMenu.tsx:189
 msgid "Menu"
@@ -248,13 +268,17 @@ msgstr "No lyrics"
 msgid "OK"
 msgstr "OK"
 
+#: src/pages/Settings/Settings.tsx:193
+msgid "Only use a Worker you control. Signed media URLs contain a reversible encoding of the short-lived single-file download URL and may appear in Worker request logs, but never contain a Microsoft Graph token or the proxy key. Use a long random proxy key. This configuration stays in this browser and is not synced to OneDrive."
+msgstr "Only use a Worker you control. Signed media URLs contain a reversible encoding of the short-lived single-file download URL and may appear in Worker request logs, but never contain a Microsoft Graph token or the proxy key. Use a long random proxy key. This configuration stays in this browser and is not synced to OneDrive."
+
 #: src/components/CommonList/CommonMenu.tsx:129
 #: src/components/CommonList/LibrarySongMenu.tsx:123
 #: src/pages/Player/PlayerMenu.tsx:239
 msgid "Open in folder"
 msgstr "Open in folder"
 
-#: src/pages/Settings/Settings.tsx:212
+#: src/pages/Settings/Settings.tsx:308
 msgid "Open source dependencies"
 msgstr "Open source dependencies"
 
@@ -279,9 +303,13 @@ msgid "Playback rate"
 msgstr "Playback rate"
 
 #: src/pages/LogIn.tsx:26
-#: src/pages/Settings/Settings.tsx:121
+#: src/pages/Settings/Settings.tsx:154
 msgid "Please use Microsoft account authorization to log in"
 msgstr "Please use Microsoft account authorization to log in"
+
+#: src/pages/Settings/Settings.tsx:227
+msgid "Proxy access key"
+msgstr "Proxy access key"
 
 #: src/pages/Player/PlayerMenu.tsx:276
 msgid "Re-fetch metadata"
@@ -304,11 +332,11 @@ msgid "Search"
 msgstr "Search"
 
 #: src/components/CommonList/CommonMenu.tsx:160
-#: src/pages/Settings/Settings.tsx:132
+#: src/pages/Settings/Settings.tsx:165
 msgid "Select"
 msgstr "Select"
 
-#: src/pages/Settings/Settings.tsx:226
+#: src/pages/Settings/Settings.tsx:322
 msgid "Select account"
 msgstr "Select account"
 
@@ -329,7 +357,7 @@ msgstr "Settings"
 msgid "Sign in"
 msgstr "登录"
 
-#: src/pages/Settings/Settings.tsx:234
+#: src/pages/Settings/Settings.tsx:330
 msgid "Sign out"
 msgstr "Sign out"
 
@@ -354,14 +382,26 @@ msgstr "Switch theme"
 msgid "Syncing"
 msgstr "Syncing"
 
+#: src/pages/Settings/Settings.tsx:241
+msgid "Test connection and key"
+msgstr "Test connection and key"
+
+#: src/pages/Settings/Settings.tsx:241
+msgid "Testing…"
+msgstr "Testing…"
+
 #: src/pages/Playlist/Playlist.tsx:245
 msgid "The playlist will be deleted"
 msgstr "The playlist will be deleted"
 
-#: src/pages/Settings/Settings.tsx:186
+#: src/pages/Settings/Settings.tsx:282
 msgid "Use album cover theme color"
 msgstr "Use album cover theme color"
 
-#: src/pages/Settings/Settings.tsx:200
+#: src/pages/Settings/Settings.tsx:296
 msgid "Version"
 msgstr "Version"
+
+#: src/pages/Settings/Settings.tsx:213
+msgid "Worker HTTPS address"
+msgstr "Worker HTTPS address"

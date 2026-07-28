@@ -1,7 +1,7 @@
 import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { getRangeMetadata } from './rangeMetadata.ts'
-import { HttpRangeReader, RangeBudgetExceededError, RangeNotSupportedError, RangeRequestError } from './rangeReader.ts'
+import { getRangeMetadata } from '../src/utils/rangeMetadata.ts'
+import { HttpRangeReader, RangeBudgetExceededError, RangeNotSupportedError, RangeRequestError } from '../src/utils/rangeReader.ts'
 import type { FileNode } from '@/types/file'
 
 const originalFetch = globalThis.fetch
@@ -130,7 +130,10 @@ describe('HttpRangeReader', () => {
     await started
     controller.abort()
 
-    await assert.rejects(() => reading, RangeRequestError)
+    await assert.rejects(
+      () => reading,
+      error => error instanceof RangeRequestError && error.reason === 'AbortError',
+    )
   })
 })
 

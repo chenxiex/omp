@@ -21,6 +21,7 @@ import {
   MEDIA_SOURCE_MAX_RETRIES,
   type TerminalFailureState,
 } from '@/utils/playbackTransition'
+import { shouldBypassMediaProxyForRecovery } from '@/utils/mediaProxy'
 import {
   getTrackSourceKey,
   type ResolvedTrackSource,
@@ -460,6 +461,7 @@ const usePlayerCore = (players: PlayerElements) => {
     }
 
     const player = getPlayer(slot)
+    const failedTransport = slotRuntimeRef.current[slot].source?.transport ?? 'direct'
     const savedPosition = expectedResumeTime ?? (
       playbackPositionRef.current.trackKey === targetKey
         ? playbackPositionRef.current.time
@@ -467,6 +469,7 @@ const usePlayerCore = (players: PlayerElements) => {
     )
     recoveryAttemptsRef.current.count += 1
     const attempt = recoveryAttemptsRef.current.count
+    const bypassProxy = shouldBypassMediaProxyForRecovery(failedTransport, attempt)
     const delay = attempt === 1 ? 0 : MEDIA_RETRY_DELAY_MS
     const token = ++recoverySequenceRef.current
 
@@ -501,7 +504,7 @@ const usePlayerCore = (players: PlayerElements) => {
         || !usePlayerStore.getState().autoPlay
       ) return
 
-      void resolveSource(selected.track, { forceRefresh: true })
+      void resolveSource(selected.track, { forceRefresh: true, bypassProxy })
         .then(source => {
           const latestRecovery = recoveryStateRef.current
           const latestQueue = usePlayQueueStore.getState()

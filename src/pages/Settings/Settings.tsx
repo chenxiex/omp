@@ -1,4 +1,4 @@
-import { Avatar, Box, Button, Checkbox, Dialog, DialogActions, DialogTitle, Divider, FormControl, FormControlLabel, IconButton, List, ListItem, ListItemAvatar, ListItemButton, ListItemText, MenuItem, Select, SelectChangeEvent, Tooltip } from '@mui/material'
+import { Alert, Avatar, Box, Button, Checkbox, Dialog, DialogActions, DialogTitle, Divider, FormControl, FormControlLabel, IconButton, List, ListItem, ListItemAvatar, ListItemButton, ListItemText, MenuItem, Select, SelectChangeEvent, TextField, Tooltip, Typography } from '@mui/material'
 import useUser from '@/hooks/graph/useUser'
 import { licenses } from '@/data/licenses'
 import useLocalMetaDataStore from '@/store/useLocalMetaDataStore'
@@ -22,6 +22,9 @@ import { useMsal } from '@azure/msal-react'
 import useGraph from '@/hooks/graph/useGraph'
 import ListItemTitle from '@/components/ListItemTitle'
 import { getRemotePath } from '@/utils/remote'
+import { checkMediaProxy, normalizeMediaProxyUrl } from '@/utils/mediaProxy'
+
+type MediaProxyTestStatus = 'idle' | 'testing' | 'success' | 'error'
 
 const Settings = () => {
   const { t } = useLingui()
@@ -41,6 +44,12 @@ const Settings = () => {
     updateCurrentAccount,
     updateCoverThemeColor,
     updateColorMode,
+    mediaProxyEnabled,
+    mediaProxyUrl,
+    mediaProxyAccessKey,
+    updateMediaProxyEnabled,
+    updateMediaProxyUrl,
+    updateMediaProxyAccessKey
   ] = useUiStore(
     useShallow(
       (state) => [
@@ -49,7 +58,13 @@ const Settings = () => {
         state.colorMode,
         state.updateCurrentAccount,
         state.updateCoverThemeColor,
-        state.updateColorMode
+        state.updateColorMode,
+        state.mediaProxyEnabled,
+        state.mediaProxyUrl,
+        state.mediaProxyAccessKey,
+        state.updateMediaProxyEnabled,
+        state.updateMediaProxyUrl,
+        state.updateMediaProxyAccessKey
       ]
     )
   )
@@ -61,6 +76,7 @@ const Settings = () => {
 
   const [accountsDialogOpen, setAccountsDialogOpen] = useState(false)
   const [libraryRootName, setLibraryRootName] = useState('')
+  const [mediaProxyTestStatus, setMediaProxyTestStatus] = useState<MediaProxyTestStatus>('idle')
 
   const settings = useLiveQuery(() => db?.settings.get('settings'), [db])
   const libraryRootId = useMemo(() => settings?.libraryRootId, [settings])
@@ -78,6 +94,23 @@ const Settings = () => {
   )
 
   const handleCloseAccountsDialog = () => setAccountsDialogOpen(false)
+
+  const resetMediaProxyTest = () => setMediaProxyTestStatus('idle')
+
+  const handleMediaProxyTest = async () => {
+    setMediaProxyTestStatus('testing')
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 10_000)
+    try {
+      const normalizedUrl = normalizeMediaProxyUrl(mediaProxyUrl)
+      await checkMediaProxy({ url: normalizedUrl, accessKey: mediaProxyAccessKey }, controller.signal)
+      setMediaProxyTestStatus('success')
+    } catch {
+      setMediaProxyTestStatus('error')
+    } finally {
+      window.clearTimeout(timeout)
+    }
+  }
 
   const handleChangeAccount = (index: number) => {
     handleCloseAccountsDialog()
@@ -150,6 +183,69 @@ const Settings = () => {
           }
         >
           <ListItemText inset primary={t`Local metaData cache`} secondary=' ' />
+        </ListItem>
+
+        <Divider sx={{ m: 1 }} />
+
+        <ListItemTitle title={t`Media proxy`} />
+        <ListItem sx={{ pl: { xs: 2, sm: 9 } }}>
+          <Alert severity='warning' sx={{ width: '100%' }}>
+            {t`Only use a Worker you control. Signed media URLs contain a reversible encoding of the short-lived single-file download URL and may appear in Worker request logs, but never contain a Microsoft Graph token or the proxy key. Use a long random proxy key. This configuration stays in this browser and is not synced to OneDrive.`}
+          </Alert>
+        </ListItem>
+        <ListItem
+          secondaryAction={
+            <FormControlLabel
+              control={<Checkbox checked={mediaProxyEnabled} />}
+              label={false}
+              onChange={() => {
+                updateMediaProxyEnabled(!mediaProxyEnabled)
+                resetMediaProxyTest()
+              }}
+            />
+          }
+        >
+          <ListItemText inset primary={t`Enable media proxy`} secondary={t`Disabled by default`} />
+        </ListItem>
+        <ListItem sx={{ pl: { xs: 2, sm: 9 }, pr: { xs: 2, sm: 3 } }}>
+          <TextField
+            fullWidth
+            label={t`Worker HTTPS address`}
+            placeholder='https://media-proxy.example.workers.dev'
+            value={mediaProxyUrl}
+            onChange={(event) => {
+              updateMediaProxyUrl(event.target.value)
+              resetMediaProxyTest()
+            }}
+          />
+        </ListItem>
+        <ListItem sx={{ pl: { xs: 2, sm: 9 }, pr: { xs: 2, sm: 3 } }}>
+          <TextField
+            fullWidth
+            type='password'
+            autoComplete='new-password'
+            label={t`Proxy access key`}
+            value={mediaProxyAccessKey}
+            onChange={(event) => {
+              updateMediaProxyAccessKey(event.target.value)
+              resetMediaProxyTest()
+            }}
+          />
+        </ListItem>
+        <ListItem sx={{ pl: { xs: 2, sm: 9 }, gap: 2 }}>
+          <Button
+            variant='outlined'
+            disabled={mediaProxyTestStatus === 'testing'}
+            onClick={() => void handleMediaProxyTest()}
+          >
+            {mediaProxyTestStatus === 'testing' ? t`Testing…` : t`Test connection and key`}
+          </Button>
+          {mediaProxyTestStatus === 'success' && (
+            <Typography color='success.main'>{t`Connection and key verified`}</Typography>
+          )}
+          {mediaProxyTestStatus === 'error' && (
+            <Typography color='error.main'>{t`Connection or key verification failed`}</Typography>
+          )}
         </ListItem>
 
         <Divider sx={{ m: 1 }} />
@@ -265,4 +361,5 @@ const Settings = () => {
 
   )
 }
+
 export default Settings

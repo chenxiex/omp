@@ -1,12 +1,21 @@
 import type { ThumbnailItem, Track } from '../types/file.ts'
 
-// Graph 临时下载地址只在当前播放会话中短期复用
+// Graph 临时下载地址和签名媒体 URL 只在当前播放会话中短期复用
 export const TRACK_SOURCE_MAX_AGE_MS = 45 * 60 * 1000
+export const TRACK_SOURCE_EXPIRY_SAFETY_MS = 60 * 1000
+
+export type TrackSourceTransport = 'proxy' | 'direct'
+
+export interface TrackSourceRequestOptions {
+  bypassProxy?: boolean
+}
 
 export interface FetchedTrackSource {
   url: string
   remoteTrack: Track
   thumbnail?: ThumbnailItem
+  transport: TrackSourceTransport
+  expiresAt?: number
 }
 
 export interface ResolvedTrackSource extends FetchedTrackSource {
@@ -19,6 +28,7 @@ export interface ResolvedTrackSource extends FetchedTrackSource {
 export type FetchTrackSource = (
   track: Track,
   signal: AbortSignal,
+  options?: TrackSourceRequestOptions,
 ) => Promise<FetchedTrackSource>
 
 interface CacheEntry {
@@ -50,12 +60,19 @@ export class TrackSourceCache {
 
   peek(accountId: string, track: Track, maxAgeMs = TRACK_SOURCE_MAX_AGE_MS) {
     const source = this.entries.get(cacheKey(accountId, track))?.source
-    if (!source || this.now() - source.fetchedAt >= maxAgeMs) return undefined
+    if (!source) return undefined
+
+    const maxAgeDeadline = source.fetchedAt + maxAgeMs
+    const sourceDeadline = source.expiresAt === undefined
+      ? maxAgeDeadline
+      : source.expiresAt - TRACK_SOURCE_EXPIRY_SAFETY_MS
+    if (this.now() >= Math.min(maxAgeDeadline, sourceDeadline)) return undefined
 
     return source
   }
 
-  resolve(accountId: string, track: Track) {
+  resolve(accountId: string, track: Track, options?: TrackSourceRequestOptions) {
+    if (options?.bypassProxy) this.invalidate(accountId, track)
     const key = cacheKey(accountId, track)
     const existing = this.entries.get(key)
     const cached = this.peek(accountId, track)
@@ -70,7 +87,7 @@ export class TrackSourceCache {
       source: existing?.source,
     }
 
-    const promise = this.fetchSource(track, controller.signal)
+    const promise = this.fetchSource(track, controller.signal, options)
       .then(result => {
         const source: ResolvedTrackSource = {
           ...result,

@@ -21,6 +21,9 @@ export interface UiState {
   mediaOnly: boolean
   hdThumbnails: boolean
   lyricsIsShow: boolean
+  mediaProxyEnabled: boolean
+  mediaProxyUrl: string
+  mediaProxyAccessKey: string
   lastRoutes: { [key: string]: string }
 }
 
@@ -47,5 +50,8 @@ export interface UiActions {
   updateMediaOnly: (mediaOnly: UiState['mediaOnly']) => void
   updateHDThumbnails: (hdThumbnails: UiState['hdThumbnails']) => void
   updateLyricsIsShow: (lyricsIsShow: UiState['lyricsIsShow']) => void
+  updateMediaProxyEnabled: (mediaProxyEnabled: UiState['mediaProxyEnabled']) => void
+  updateMediaProxyUrl: (mediaProxyUrl: UiState['mediaProxyUrl']) => void
+  updateMediaProxyAccessKey: (mediaProxyAccessKey: UiState['mediaProxyAccessKey']) => void
   updateLastRoutes: (lastRoutes: UiState['lastRoutes']) => void
 }
