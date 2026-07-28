@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { QueuedTrack } from '../types/playQueue.ts'
+import type { QueuedTrack } from '../src/types/playQueue.ts'
 import {
   getAutomaticTarget,
   getEndedTransition,
@@ -16,7 +16,7 @@ import {
   MEDIA_PROGRESS_TIMEOUT_MS,
   MEDIA_SOURCE_MAX_RETRIES,
   type TerminalFailureState,
-} from './playbackTransition.ts'
+} from '../src/utils/playbackTransition.ts'
 
 const queue: QueuedTrack[] = ['one', 'two'].map((id, index) => ({
   index,

@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
-import type { MetaData, Picture } from '../types/metaData.ts'
+import type { MetaData, Picture } from '../src/types/metaData.ts'
 import {
   fetchThumbnailPicture,
   hasPersistedThumbnail,
   mergeMetadataPicture,
   ONEDRIVE_THUMBNAIL_DESCRIPTION,
   shouldRefreshPlaybackMetadata,
-} from './metadataPersistence.ts'
+} from '../src/utils/metadataPersistence.ts'
 
 const originalFetch = globalThis.fetch
 

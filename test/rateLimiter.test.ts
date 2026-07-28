@@ -1,6 +1,6 @@
 import { afterEach, describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { rateLimitedFetch } from './rateLimiter.ts'
+import { rateLimitedFetch } from '../src/graph/rateLimiter.ts'
 
 const originalFetch = globalThis.fetch
 const originalSetTimeout = globalThis.setTimeout

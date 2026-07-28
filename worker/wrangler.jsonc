@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "omp-media-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-01",
+  "observability": {
+    "enabled": false
+  },
+  "vars": {
+    "ALLOWED_ORIGINS": "http://localhost:8760",
+    "ALLOWED_UPSTREAM_SUFFIXES": ".1drv.com,.sharepoint.com"
+  }
+}

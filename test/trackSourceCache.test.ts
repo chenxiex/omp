@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { Track } from '../types/file.ts'
+import type { Track } from '../src/types/file.ts'
 import {
   TRACK_SOURCE_MAX_AGE_MS,
   TrackSourceCache,
-} from './trackSourceCache.ts'
+} from '../src/utils/trackSourceCache.ts'
 
 const track = (id: string): Track => ({
   id,
@@ -17,6 +17,7 @@ const track = (id: string): Track => ({
 const fetched = (item: Track) => ({
   url: `https://download.test/${item.id}`,
   remoteTrack: item,
+  transport: 'direct' as const,
 })
 
 test('deduplicates in-flight requests and reuses a fresh source', async () => {
@@ -117,4 +118,54 @@ test('invalidates a media URL that failed after Graph resolution', async () => {
   assert.equal((await cache.resolve('account', item)).url, 'https://download.test/one/1')
   cache.invalidate('account', item)
   assert.equal((await cache.resolve('account', item)).url, 'https://download.test/one/2')
+})
+
+test('expires a proxy source before its signed media URL deadline', async () => {
+  let now = 0
+  let calls = 0
+  const item = track('one')
+  const cache = new TrackSourceCache(async value => {
+    calls += 1
+    return {
+      ...fetched(value),
+      url: `https://proxy.test/${calls}`,
+      transport: 'proxy',
+      expiresAt: 120_000,
+    }
+  }, () => now)
+
+  assert.equal((await cache.resolve('account', item)).url, 'https://proxy.test/1')
+  now = 59_999
+  assert.equal((await cache.resolve('account', item)).url, 'https://proxy.test/1')
+  now = 60_000
+  assert.equal((await cache.resolve('account', item)).url, 'https://proxy.test/2')
+})
+
+test('passes a direct-only recovery request to the source fetcher', async () => {
+  const item = track('one')
+  let bypassProxy = false
+  const cache = new TrackSourceCache(async (value, _signal, options) => {
+    bypassProxy = options?.bypassProxy ?? false
+    return fetched(value)
+  })
+
+  await cache.resolve('account', item, { bypassProxy: true })
+  assert.equal(bypassProxy, true)
+})
+
+test('clears cached and in-flight sources when proxy configuration changes', async () => {
+  const item = track('one')
+  let aborted = false
+  const cache = new TrackSourceCache((_value, signal) => new Promise((_, reject) => {
+    signal.addEventListener('abort', () => {
+      aborted = true
+      reject(signal.reason)
+    }, { once: true })
+  }))
+
+  void cache.resolve('account', item).catch(() => undefined)
+  cache.clear()
+
+  assert.equal(aborted, true)
+  assert.equal(cache.peek('account', item), undefined)
 })

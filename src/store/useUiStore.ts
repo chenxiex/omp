@@ -26,6 +26,9 @@ const initialState: UiState = {
   mediaOnly: true,
   hdThumbnails: false,
   lyricsIsShow: false,
+  mediaProxyEnabled: false,
+  mediaProxyUrl: '',
+  mediaProxyAccessKey: '',
   lastRoutes: {},
 }
 
@@ -55,6 +58,9 @@ const useUiStoreBase = create<UiState & UiActions>()(
       updateMediaOnly: (mediaOnly) => set(() => ({ mediaOnly: mediaOnly })),
       updateHDThumbnails: (hdThumbnails) => set(() => ({ hdThumbnails: hdThumbnails })),
       updateLyricsIsShow: (lyricsIsShow) => set(() => ({ lyricsIsShow: lyricsIsShow })),
+      updateMediaProxyEnabled: (mediaProxyEnabled) => set(() => ({ mediaProxyEnabled })),
+      updateMediaProxyUrl: (mediaProxyUrl) => set(() => ({ mediaProxyUrl })),
+      updateMediaProxyAccessKey: (mediaProxyAccessKey) => set(() => ({ mediaProxyAccessKey })),
       updateLastRoutes: (lastRoutes) => set(() => ({ lastRoutes: lastRoutes })),
     }),
     {
