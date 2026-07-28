@@ -8,6 +8,6 @@
   },
   "vars": {
     "ALLOWED_ORIGINS": "http://localhost:8760,https://omp.anlor.top",
-    "ALLOWED_UPSTREAM_SUFFIXES": ".1drv.com,.sharepoint.com"
+    "ALLOWED_UPSTREAM_SUFFIXES": ".1drv.com,.sharepoint.com,my.microsoftpersonalcontent.com"
   }
 }
